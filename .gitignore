@@ -1,0 +1,63 @@
+# Environment Variables & Secrets (CRITICAL)
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# Node.js & React Frontend (client/)
+node_modules/
+client/node_modules/
+client/dist/
+client/dist-ssr/
+client/.vite/
+.eslintcache
+
+# Logs & Debug Output
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Go Backend Binaries & Executables (server/)
+server/bin/
+server/server
+server/server.exe
+*.exe
+*.exe.manifest
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.txt
+
+# Databases & Local Storage
+*.sqlite
+*.sqlite3
+*.db
+
+# Operating System & IDE Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temporary & Build Directories
+tmp/
+temp/
+scratch/
