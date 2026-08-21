@@ -10,19 +10,23 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const fetchUser = async () => {
-      if (!token) {
+      const storedToken = localStorage.getItem('paysentinel_token');
+      if (!storedToken) {
         setUser(null);
         setLoading(false);
         return;
       }
       try {
-        const res = await api.get('/auth/me');
-        setUser(res.data.user);
+        const res = await api.get('/v1/auth/me').catch(() => api.get('/auth/me'));
+        const userData = res.data && res.data.user ? res.data.user : res.data;
+        setUser(userData);
       } catch (err) {
         console.error('Session expired or invalid token:', err);
-        localStorage.removeItem('paysentinel_token');
-        setToken(null);
-        setUser(null);
+        if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+          localStorage.removeItem('paysentinel_token');
+          setToken(null);
+          setUser(null);
+        }
       } finally {
         setLoading(false);
       }

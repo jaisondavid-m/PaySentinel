@@ -23,17 +23,24 @@ export const PolicyProvider = ({ children }) => {
     try {
       setLoadingData(true);
       
-      // Fetch User Dashboard
-      const dashRes = await api.get('/v1/user/dashboard').catch(() => null);
+      // Fetch Dashboard
+      let dashRes = await api.get('/v1/user/dashboard').catch(() => null);
+      if (!dashRes) {
+        dashRes = await api.get('/v1/developer/dashboard').catch(() => null);
+      }
       if (dashRes && dashRes.data && dashRes.data.data) {
         const d = dashRes.data.data;
         setProtectedBalance(d.protected_balance || 25000);
-        setTotalSpentToday(d.spent_today || 0);
+        setTotalSpentToday(d.spent_today || d.total_spent || 0);
         setOverallDailyCap(d.daily_limit || 7000);
       }
 
       // Fetch Agents
-      const agentRes = await api.get('/v1/user/agents').catch(() => null);
+      let agentRes = await api.get('/v1/user/agents').catch(() => null);
+      if (!agentRes || !agentRes.data || !agentRes.data.data || agentRes.data.data.length === 0) {
+        agentRes = await api.get('/v1/developer/agents').catch(() => null);
+      }
+
       if (agentRes && agentRes.data && agentRes.data.data && agentRes.data.data.length > 0) {
         const mappedAgents = agentRes.data.data.map((ag) => {
           const userPol = ag.policies && ag.policies[0] ? ag.policies[0] : {};

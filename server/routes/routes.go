@@ -24,11 +24,12 @@ func SetupRouter() *gin.Engine {
 		})
 	})
 
-	// Public Auth routes (Preserved)
+	// Public & Auth routes
 	authRoutes := r.Group("/api/auth")
 	{
 		authRoutes.POST("/register", controllers.Register)
 		authRoutes.POST("/login", controllers.Login)
+		authRoutes.GET("/me", middleware.AuthMiddleware(), controllers.GetMe)
 	}
 
 	// PaySentinel V1 API Routes
