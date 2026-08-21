@@ -57,6 +57,43 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
+func createIsolatedTestAgent(db *gorm.DB, name string) (*models.Agent, *models.User) {
+	u := models.User{
+		Name:         "Test User",
+		Email:        fmt.Sprintf("test_user_%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "password_hash",
+		Role:         models.RoleUser,
+	}
+	db.Create(&u)
+
+	agent := models.Agent{
+		Name:        name,
+		Description: "Isolated Test Agent",
+		DeveloperID: u.ID,
+		APIKey:      fmt.Sprintf("test_key_%d", time.Now().UnixNano()),
+		Status:      models.AgentStatusActive,
+	}
+	db.Create(&agent)
+
+	db.Create(&models.AgentAuthorization{
+		AgentID:      agent.ID,
+		UserID:       u.ID,
+		Status:       models.AuthorizationStatusAuthorized,
+		AuthorizedAt: time.Now(),
+	})
+
+	db.Create(&models.AgentPolicy{
+		AgentID:                agent.ID,
+		UserID:                 u.ID,
+		MaxTransactionPaise:   300000,
+		DailyLimitPaise:       700000,
+		ApprovalThresholdPaise: 200000,
+		UnknownMerchantAction:  "ask_approval",
+	})
+
+	return &agent, &u
+}
+
 // 1. Transaction below limit -> ALLOWED
 func TestPaymentDecision_BelowLimit_Allowed(t *testing.T) {
 	db := setupTestDB(t)
@@ -64,9 +101,11 @@ func TestPaymentDecision_BelowLimit_Allowed(t *testing.T) {
 		return
 	}
 
+	agent, user := createIsolatedTestAgent(db, "Below Limit Agent")
 	service := NewPaymentDecisionService(db)
 	res, err := service.EvaluatePayment(EvaluateRequestInput{
-		AgentID:     1,
+		AgentID:     agent.ID,
+		UserID:      user.ID,
 		Merchant:    "Amazon",
 		AmountPaise: 129900, // ₹1,299.00
 		Currency:    "INR",
@@ -90,9 +129,11 @@ func TestPaymentDecision_AboveLimit_Blocked(t *testing.T) {
 		return
 	}
 
+	agent, user := createIsolatedTestAgent(db, "Above Limit Agent")
 	service := NewPaymentDecisionService(db)
 	res, err := service.EvaluatePayment(EvaluateRequestInput{
-		AgentID:     1,
+		AgentID:     agent.ID,
+		UserID:      user.ID,
 		Merchant:    "Unknown Store",
 		AmountPaise: 450000, // ₹4,500.00 (Exceeds max user limit ₹3,000.00)
 		Currency:    "INR",
@@ -119,9 +160,11 @@ func TestPaymentDecision_AboveThreshold_ApprovalRequired(t *testing.T) {
 		return
 	}
 
+	agent, user := createIsolatedTestAgent(db, "Above Threshold Agent")
 	service := NewPaymentDecisionService(db)
 	res, err := service.EvaluatePayment(EvaluateRequestInput{
-		AgentID:     1,
+		AgentID:     agent.ID,
+		UserID:      user.ID,
 		Merchant:    "Amazon",
 		AmountPaise: 250000, // ₹2,500.00 (Exceeds approval threshold ₹2,000 but <= ₹3,000 cap)
 		Currency:    "INR",
@@ -145,29 +188,11 @@ func TestPaymentDecision_DevVsUserEffectiveLimit(t *testing.T) {
 		return
 	}
 
-	// Create test agent with dev requested limit ₹10,000
-	agent := models.Agent{
-		Name:        "Dev Limit Test Agent",
-		Description: "Testing requested vs authorized limit",
-		DeveloperID: 1,
-		APIKey:      fmt.Sprintf("test_key_%d", time.Now().UnixNano()),
-		Status:      models.AgentStatusActive,
-	}
-	db.Create(&agent)
-
+	agent, user := createIsolatedTestAgent(db, "Dev vs User Effective Limit Agent")
 	db.Create(&models.AgentPermission{
 		AgentID:        agent.ID,
 		PermissionType: "MAX_TRANSACTION_LIMIT",
 		RequestedValue: "10000.00",
-	})
-
-	// User authorizes max ₹3,000 (300000 paise)
-	db.Create(&models.AgentPolicy{
-		AgentID:                agent.ID,
-		UserID:                 1,
-		MaxTransactionPaise:   300000,
-		DailyLimitPaise:       700000,
-		ApprovalThresholdPaise: 200000,
 	})
 
 	service := NewPaymentDecisionService(db)
@@ -175,6 +200,7 @@ func TestPaymentDecision_DevVsUserEffectiveLimit(t *testing.T) {
 	// Test ₹4,000 request -> should be BLOCKED because effective limit is MIN(10000, 3000) = 3000
 	res, err := service.EvaluatePayment(EvaluateRequestInput{
 		AgentID:     agent.ID,
+		UserID:      user.ID,
 		Merchant:    "Store",
 		AmountPaise: 400000, // ₹4,000
 		Currency:    "INR",

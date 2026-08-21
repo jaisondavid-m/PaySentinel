@@ -35,8 +35,9 @@ func SetupRouter() *gin.Engine {
 	// PaySentinel V1 API Routes
 	v1 := r.Group("/api/v1")
 	{
-		// Agent execution endpoint (Public/HMAC authenticated agent trigger)
+		// Agent execution endpoint & Gemini AI Shopping Agent prompt endpoint
 		v1.POST("/agent/payment-requests", controllers.AgentPaymentRequest)
+		v1.POST("/ai/shopping-agent", controllers.AIShoppingAgent)
 
 		// Protected routes requiring authenticated user/developer JWT
 		protected := v1.Group("")

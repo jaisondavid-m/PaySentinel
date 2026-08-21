@@ -251,6 +251,20 @@ export const PolicyProvider = ({ children }) => {
     }
   };
 
+  // Generate Gemini AI Shopping Agent Proposal via Backend API
+  const generateAIPurchaseProposal = async (message) => {
+    try {
+      const res = await api.post('/v1/ai/shopping-agent', { message });
+      if (res.data && res.data.data) {
+        return res.data.data;
+      }
+      return null;
+    } catch (err) {
+      console.error('Error generating AI purchase proposal:', err);
+      throw err;
+    }
+  };
+
   const pendingApprovalsCount = approvals.length;
 
   return (
@@ -271,6 +285,7 @@ export const PolicyProvider = ({ children }) => {
         updateAgentPolicy,
         createAgent,
         evaluatePayment,
+        generateAIPurchaseProposal,
         resolveApproval,
         refreshData,
       }}

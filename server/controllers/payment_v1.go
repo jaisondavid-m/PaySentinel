@@ -65,6 +65,28 @@ func AgentPaymentRequest(c *gin.Context) {
 	RespondSuccess(c, http.StatusOK, result)
 }
 
+type AIShoppingAgentInput struct {
+	Message string `json:"message" binding:"required"`
+}
+
+// AIShoppingAgent handles POST /api/v1/ai/shopping-agent
+func AIShoppingAgent(c *gin.Context) {
+	var input AIShoppingAgentInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		RespondError(c, http.StatusBadRequest, "INVALID_INPUT", "Message prompt is required")
+		return
+	}
+
+	geminiService := services.NewGeminiAgentService()
+	res, err := geminiService.GeneratePurchaseProposal(input.Message)
+	if err != nil {
+		RespondError(c, http.StatusInternalServerError, "AI_AGENT_UNAVAILABLE", err.Error())
+		return
+	}
+
+	RespondSuccess(c, http.StatusOK, res)
+}
+
 // UserGetApprovals handles GET /api/v1/user/approvals
 func UserGetApprovals(c *gin.Context) {
 	userIDVal, _ := c.Get("userID")
