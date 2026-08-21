@@ -14,6 +14,7 @@ import (
 
 type PaymentRequestInput struct {
 	AgentID     uint    `json:"agent_id" binding:"required"`
+	UserID      uint    `json:"user_id"`
 	Merchant    string  `json:"merchant" binding:"required"`
 	AmountPaise int64   `json:"amount_paise"`
 	Amount      float64 `json:"amount"` // Fallback support if sent as rupees
@@ -48,6 +49,7 @@ func AgentPaymentRequest(c *gin.Context) {
 	decisionService := services.NewPaymentDecisionService(config.DB)
 	result, err := decisionService.EvaluatePayment(services.EvaluateRequestInput{
 		AgentID:     input.AgentID,
+		UserID:      input.UserID,
 		Merchant:    input.Merchant,
 		AmountPaise: amountPaise,
 		Currency:    input.Currency,
@@ -241,7 +243,7 @@ func UserGetDashboard(c *gin.Context) {
 		"blocked_count":             blockedCount,
 		"allowed_count":             allowedCount,
 		"recent_transactions":       recentTxns,
-		"protected_balance":         25000.00,
+		"protected_balance":         float64(dailyLimitPaise*5) / 100.0,
 	})
 }
 

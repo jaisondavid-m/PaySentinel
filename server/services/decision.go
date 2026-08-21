@@ -21,6 +21,7 @@ func NewPaymentDecisionService(db *gorm.DB) *PaymentDecisionService {
 
 type EvaluateRequestInput struct {
 	AgentID     uint   `json:"agent_id"`
+	UserID      uint   `json:"user_id"`
 	Merchant    string `json:"merchant"`
 	AmountPaise int64  `json:"amount_paise"`
 	Currency    string `json:"currency"`
@@ -58,12 +59,21 @@ func (s *PaymentDecisionService) EvaluatePayment(input EvaluateRequestInput) (*E
 	}
 
 	// Step 2: Find Authorized User & Active Authorization
-	var auth models.AgentAuthorization
-	if err := s.db.Where("agent_id = ? AND status = ?", agent.ID, models.AuthorizationStatusAuthorized).First(&auth).Error; err != nil {
-		// Fallback: If no authorization table record, lookup DeveloperID as fallback user context
-		auth.UserID = agent.DeveloperID
+	var userID uint
+	if input.UserID > 0 {
+		var auth models.AgentAuthorization
+		if err := s.db.Where("agent_id = ? AND user_id = ? AND status = ?", agent.ID, input.UserID, models.AuthorizationStatusAuthorized).First(&auth).Error; err != nil {
+			return s.createBlockedResult(&agent, input.UserID, input, "Agent is not authorized by the specified user.", "UNAUTHORIZED_AGENT", "Authorization Status: NOT_AUTHORIZED")
+		}
+		userID = auth.UserID
+	} else {
+		var auth models.AgentAuthorization
+		if err := s.db.Where("agent_id = ? AND status = ?", agent.ID, models.AuthorizationStatusAuthorized).First(&auth).Error; err != nil {
+			userID = agent.DeveloperID
+		} else {
+			userID = auth.UserID
+		}
 	}
-	userID := auth.UserID
 
 	// Step 3: Load User Policy
 	var policy models.AgentPolicy
