@@ -1,19 +1,19 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
-import { INITIAL_AGENTS, INITIAL_TRANSACTIONS, INITIAL_APPROVALS } from '../data/mockData';
 
 const PolicyContext = createContext(null);
 
 export const PolicyProvider = ({ children }) => {
-  const [agents, setAgents] = useState(INITIAL_AGENTS);
-  const [transactions, setTransactions] = useState(INITIAL_TRANSACTIONS);
-  const [approvals, setApprovals] = useState(INITIAL_APPROVALS);
+  const [agents, setAgents] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [approvals, setApprovals] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   
   const [loadingData, setLoadingData] = useState(false);
   const [protectedBalance, setProtectedBalance] = useState(25000);
   const [overallDailyCap, setOverallDailyCap] = useState(7000);
-  const [totalSpentToday, setTotalSpentToday] = useState(1240);
+  const [totalSpentToday, setTotalSpentToday] = useState(0);
+  const [blockedCountToday, setBlockedCountToday] = useState(0);
 
   // Fetch real data from backend API
   const refreshData = useCallback(async () => {
@@ -31,8 +31,9 @@ export const PolicyProvider = ({ children }) => {
       if (dashRes && dashRes.data && dashRes.data.data) {
         const d = dashRes.data.data;
         setProtectedBalance(d.protected_balance || 25000);
-        setTotalSpentToday(d.spent_today || d.total_spent || 0);
+        setTotalSpentToday(d.spent_today || 0);
         setOverallDailyCap(d.daily_limit || 7000);
+        setBlockedCountToday(d.blocked_count || 0);
       }
 
       // Fetch Agents
@@ -41,21 +42,28 @@ export const PolicyProvider = ({ children }) => {
         agentRes = await api.get('/v1/developer/agents').catch(() => null);
       }
 
-      if (agentRes && agentRes.data && agentRes.data.data && agentRes.data.data.length > 0) {
+      if (agentRes && agentRes.data && agentRes.data.data) {
         const mappedAgents = agentRes.data.data.map((ag) => {
           const userPol = ag.policies && ag.policies[0] ? ag.policies[0] : {};
+          const maxTxn = userPol.max_transaction_paise ? userPol.max_transaction_paise / 100 : 3000;
+          const dailyCap = userPol.daily_limit_paise ? userPol.daily_limit_paise / 100 : 7000;
+          const thresh = userPol.approval_threshold_paise ? userPol.approval_threshold_paise / 100 : 2000;
+          const spentToday = ag.spent_today_paise ? ag.spent_today_paise / 100 : 0;
+
           return {
             id: ag.id,
             name: ag.name,
+            description: ag.description,
             developer: ag.developer ? ag.developer.name : 'ShopWise AI Inc.',
             status: (ag.status || 'ACTIVE').toLowerCase(),
-            spentToday: 0,
-            userTxnLimit: userPol.max_transaction_amount || 3000,
-            userDailyLimit: userPol.daily_limit || 7000,
-            approvalThreshold: userPol.approval_threshold || 2000,
+            isAuthorized: ag.is_authorized || false,
+            spentToday,
+            userTxnLimit: maxTxn,
+            userDailyLimit: dailyCap,
+            approvalThreshold: thresh,
             allowedCategories: ['Electronics', 'Groceries', 'Software'],
             blockedCategories: ['Gambling', 'Gift Cards', 'Crypto'],
-            lastActivity: 'Just now',
+            lastActivity: new Date(ag.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           };
         });
         setAgents(mappedAgents);
@@ -63,22 +71,25 @@ export const PolicyProvider = ({ children }) => {
 
       // Fetch Transactions
       const txnRes = await api.get('/v1/user/transactions').catch(() => null);
-      if (txnRes && txnRes.data && txnRes.data.data && txnRes.data.data.length > 0) {
-        const mappedTxns = txnRes.data.data.map((t) => ({
-          id: `TXN-${t.id}`,
-          time: new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          timestamp: t.created_at,
-          agentId: t.agent_id,
-          agentName: t.agent ? t.agent.name : 'AI Agent',
-          developer: 'ShopWise AI Inc.',
-          merchant: t.merchant,
-          amount: t.amount,
-          category: t.category,
-          decision: t.status,
-          reason: t.decision_reason,
-          policyEnforced: t.policy_enforced,
-          requestedAction: t.description || 'Automated payment trigger',
-        }));
+      if (txnRes && txnRes.data && txnRes.data.data) {
+        const mappedTxns = txnRes.data.data.map((t) => {
+          const amountRs = t.amount_paise ? t.amount_paise / 100 : (t.amount || 0);
+          return {
+            id: `TXN-${t.id}`,
+            time: new Date(t.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            timestamp: t.created_at,
+            agentId: t.agent_id,
+            agentName: t.agent ? t.agent.name : 'AI Agent',
+            developer: t.agent && t.agent.developer ? t.agent.developer.name : 'ShopWise AI Inc.',
+            merchant: t.merchant,
+            amount: amountRs,
+            category: t.category,
+            decision: t.status,
+            reason: t.decision_reason,
+            policyEnforced: t.policy_enforced,
+            requestedAction: t.description || 'Automated payment trigger',
+          };
+        });
         setTransactions(mappedTxns);
       }
 
@@ -87,13 +98,14 @@ export const PolicyProvider = ({ children }) => {
       if (appRes && appRes.data && appRes.data.data) {
         const mappedApps = appRes.data.data.map((a) => {
           const pr = a.payment_request || {};
+          const amountRs = pr.amount_paise ? pr.amount_paise / 100 : (pr.amount || 0);
           return {
             id: a.id,
             agentId: pr.agent_id,
             agentName: pr.agent ? pr.agent.name : 'AI Agent',
-            developer: 'ShopWise AI Inc.',
+            developer: pr.agent && pr.agent.developer ? pr.agent.developer.name : 'ShopWise AI Inc.',
             merchant: pr.merchant,
-            amount: pr.amount,
+            amount: amountRs,
             category: pr.category,
             itemDescription: pr.description || 'Requested Purchase',
             agentPromptReason: 'Agent initiated payment trigger',
@@ -111,7 +123,7 @@ export const PolicyProvider = ({ children }) => {
       }
 
     } catch (err) {
-      console.warn('Backend API connection warning. Falling back to local prototype state:', err);
+      console.error('Error fetching backend state:', err);
     } finally {
       setLoadingData(false);
     }
@@ -128,21 +140,26 @@ export const PolicyProvider = ({ children }) => {
 
     try {
       await api.patch(`/v1/user/agents/${agentId}/status`, { status: newStatus });
-      setAgents((prev) =>
-        prev.map((ag) =>
-          ag.id === agentId ? { ...ag, status: newStatus.toLowerCase() } : ag
-        )
-      );
+      refreshData();
     } catch (err) {
       console.error('Error toggling agent status:', err);
-      // Fallback local toggle
-      setAgents((prev) =>
-        prev.map((ag) =>
-          ag.id === agentId
-            ? { ...ag, status: ag.status === 'active' ? 'paused' : 'active' }
-            : ag
-        )
-      );
+    }
+  };
+
+  // Authorize Agent via API
+  const authorizeAgent = async (agentId, policyData) => {
+    try {
+      await api.post(`/v1/user/agents/${agentId}/authorize`, {
+        max_transaction_amount: policyData.userTxnLimit || 3000,
+        daily_limit: policyData.userDailyLimit || 7000,
+        approval_threshold: policyData.approvalThreshold || 2000,
+        allowed_categories: policyData.allowedCategories || ['Electronics', 'Groceries'],
+        blocked_categories: policyData.blockedCategories || ['Gambling', 'Gift Cards', 'Crypto'],
+        unknown_merchant_action: policyData.unknownMerchantAction || 'ask_approval',
+      });
+      refreshData();
+    } catch (err) {
+      console.error('Error authorizing agent:', err);
     }
   };
 
@@ -158,14 +175,9 @@ export const PolicyProvider = ({ children }) => {
         allowed_categories: updatedFields.allowedCategories,
         blocked_categories: updatedFields.blockedCategories,
       });
-      setAgents((prev) =>
-        prev.map((ag) => (ag.id === agentId ? { ...ag, ...updatedFields } : ag))
-      );
+      refreshData();
     } catch (err) {
       console.error('Error updating agent policy via API:', err);
-      setAgents((prev) =>
-        prev.map((ag) => (ag.id === agentId ? { ...ag, ...updatedFields } : ag))
-      );
     }
   };
 
@@ -175,136 +187,54 @@ export const PolicyProvider = ({ children }) => {
       const res = await api.post('/v1/developer/agents', {
         name: newAgent.name,
         description: newAgent.description,
-        requested_txn_limit: newAgent.requestedTxnLimit,
-        requested_daily_limit: newAgent.requestedDailyLimit,
+        requested_txn_limit: newAgent.requestedTxnLimit || 5000,
+        requested_daily_limit: newAgent.requestedDailyLimit || 10000,
+        capabilities: newAgent.capabilities || ['payment', 'electronics', 'groceries'],
       });
 
-      const createdObj = res.data && res.data.data ? res.data.data : null;
-      const created = {
-        id: createdObj ? createdObj.id : `ag-${Date.now()}`,
-        status: 'active',
-        spentToday: 0,
-        riskLevel: 'Low Risk',
-        userTxnLimit: 3000,
-        userDailyLimit: 7000,
-        approvalThreshold: 2000,
-        allowedCategories: ['Electronics', 'Groceries'],
-        blockedCategories: ['Gambling', 'Gift Cards', 'Crypto'],
-        lastActivity: 'Just now',
-        ...newAgent,
-      };
-
-      setAgents((prev) => [created, ...prev]);
-      return created;
+      refreshData();
+      return res.data && res.data.data ? res.data.data : null;
     } catch (err) {
       console.error('Error creating developer agent:', err);
-      const fallbackCreated = {
-        id: `ag-${Date.now()}`,
-        status: 'active',
-        spentToday: 0,
-        riskLevel: 'Low Risk',
-        userTxnLimit: 3000,
-        userDailyLimit: 7000,
-        approvalThreshold: 2000,
-        allowedCategories: ['Electronics', 'Groceries'],
-        blockedCategories: ['Gambling', 'Gift Cards', 'Crypto'],
-        lastActivity: 'Just now',
-        ...newAgent,
-      };
-      setAgents((prev) => [fallbackCreated, ...prev]);
-      return fallbackCreated;
+      throw err;
     }
   };
 
-  // Evaluate Payment Request via API
+  // Evaluate Payment Request via Backend API Only
   const evaluatePayment = async (req) => {
     const numericAmount = parseFloat(req.amount);
-    const numericAgentId = typeof req.agentId === 'number' ? req.agentId : 1;
+    const amountPaise = Math.round(numericAmount * 100);
+    const numericAgentId = typeof req.agentId === 'number' ? req.agentId : parseInt(req.agentId) || 1;
 
-    try {
-      const res = await api.post('/v1/agent/payment-requests', {
-        agent_id: numericAgentId,
-        merchant: req.merchant,
-        amount: numericAmount,
-        currency: 'INR',
-        category: req.category,
-        description: `Automated ${req.category} payment request`,
-      });
-
-      const data = res.data && res.data.data ? res.data.data : null;
-      if (data) {
-        refreshData();
-        const pr = data.payment_request || {};
-        return {
-          decision: data.decision,
-          reason: data.reason,
-          policyEnforced: pr.policy_enforced || 'PaySentinel Enforced Rule',
-          pipelineSteps: [
-            { step: 1, title: 'Agent Verification', status: 'passed', detail: 'Verified & Active' },
-            { step: 2, title: 'Category Policy Check', status: 'passed', detail: `Category ${req.category} checked` },
-            { step: 3, title: 'Transaction Limit Check', status: data.decision === 'BLOCKED' ? 'failed' : 'passed', detail: `₹${numericAmount} evaluated` },
-            { step: 4, title: 'Daily Spending Cap Check', status: 'passed', detail: 'Within daily cap' },
-            { step: 5, title: 'Human Approval Threshold Check', status: data.decision === 'APPROVAL_REQUIRED' ? 'warning' : 'passed', detail: 'Threshold evaluated' },
-          ],
-        };
-      }
-    } catch (err) {
-      console.warn('Falling back to client-side decision evaluator:', err);
-    }
-
-    // Client-side fallback evaluator for simulation
-    const agent = agents.find((a) => a.id === req.agentId) || agents[0];
-    let decision = 'ALLOWED';
-    let reason = 'Transaction is within user daily spending limit and single purchase cap.';
-    let policyEnforced = `User Single Cap: ₹${agent.userTxnLimit.toLocaleString()} | Daily Cap: ₹${agent.userDailyLimit.toLocaleString()}`;
-
-    const pipelineSteps = [
-      { step: 1, title: 'Agent Verification', status: 'passed', detail: `Agent ${agent.name} verified & active.` },
-      { step: 2, title: 'Category Policy Check', status: 'passed', detail: `Category ${req.category} permitted.` },
-      { step: 3, title: 'Transaction Limit Check', status: 'passed', detail: `₹${numericAmount} <= ₹${agent.userTxnLimit}` },
-      { step: 4, title: 'Daily Spending Cap Check', status: 'passed', detail: 'Within daily cap' },
-      { step: 5, title: 'Human Approval Threshold Check', status: 'passed', detail: 'Threshold evaluated' },
-    ];
-
-    if (agent.status !== 'active') {
-      decision = 'BLOCKED';
-      reason = `Agent "${agent.name}" is currently PAUSED by user. All transactions blocked.`;
-      policyEnforced = 'Agent Status: PAUSED';
-      pipelineSteps[0] = { step: 1, title: 'Agent Verification', status: 'failed', detail: `Agent ${agent.name} is PAUSED.` };
-    } else if (agent.blockedCategories.some((c) => c.toLowerCase() === req.category.toLowerCase())) {
-      decision = 'BLOCKED';
-      reason = `Category "${req.category}" is explicitly blocked under user security policy.`;
-      policyEnforced = `Blocked Category Rule (${req.category})`;
-      pipelineSteps[1] = { step: 2, title: 'Category Policy Check', status: 'failed', detail: `Category ${req.category} explicitly BLOCKED.` };
-    } else if (numericAmount > agent.userTxnLimit) {
-      decision = 'BLOCKED';
-      reason = `Amount (₹${numericAmount.toLocaleString()}) exceeds maximum user transaction limit of ₹${agent.userTxnLimit.toLocaleString()}.`;
-      policyEnforced = `User Transaction Limit Cap: ₹${agent.userTxnLimit.toLocaleString()}`;
-      pipelineSteps[2] = { step: 3, title: 'Transaction Limit Check', status: 'failed', detail: `Exceeds ₹${agent.userTxnLimit} cap.` };
-    } else if (numericAmount > agent.approvalThreshold) {
-      decision = 'APPROVAL_REQUIRED';
-      reason = `Amount (₹${numericAmount.toLocaleString()}) is within daily cap but exceeds automatic approval threshold (₹${agent.approvalThreshold.toLocaleString()}). Human verification required.`;
-      policyEnforced = `Human Approval Threshold: > ₹${agent.approvalThreshold.toLocaleString()}`;
-      pipelineSteps[4] = { step: 5, title: 'Human Approval Threshold Check', status: 'warning', detail: `Exceeds threshold ₹${agent.approvalThreshold}` };
-    }
-
-    const newTxn = {
-      id: `TXN-${Math.floor(10000 + Math.random() * 90000)}`,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
-      agentId: agent.id,
-      agentName: agent.name,
-      developer: agent.developer,
+    const res = await api.post('/v1/agent/payment-requests', {
+      agent_id: numericAgentId,
       merchant: req.merchant,
+      amount_paise: amountPaise,
       amount: numericAmount,
+      currency: 'INR',
       category: req.category,
-      decision,
-      reason,
-      policyEnforced,
-    };
-    setTransactions((prev) => [newTxn, ...prev]);
+      description: req.description || `Automated ${req.category} payment request`,
+    });
 
-    return { decision, reason, policyEnforced, pipelineSteps, newTxn };
+    const data = res.data && res.data.data ? res.data.data : null;
+    refreshData();
+
+    if (data) {
+      const pr = data.payment_request || {};
+      return {
+        decision: data.decision,
+        reason: data.reason,
+        policyEnforced: pr.policy_enforced || 'PaySentinel Enforced Rule',
+        pipelineSteps: [
+          { step: 1, title: 'Agent Verification', status: 'passed', detail: 'Verified & Active' },
+          { step: 2, title: 'Category Policy Check', status: 'passed', detail: `Category ${req.category} checked` },
+          { step: 3, title: 'Transaction Limit Check', status: data.decision === 'BLOCKED' ? 'failed' : 'passed', detail: `₹${numericAmount.toLocaleString()} evaluated` },
+          { step: 4, title: 'Daily Spending Cap Check', status: 'passed', detail: 'Within daily cap' },
+          { step: 5, title: 'Human Approval Threshold Check', status: data.decision === 'APPROVAL_REQUIRED' ? 'warning' : 'passed', detail: 'Threshold evaluated' },
+        ],
+      };
+    }
+    return null;
   };
 
   // Resolve Approval via API
@@ -318,13 +248,10 @@ export const PolicyProvider = ({ children }) => {
       refreshData();
     } catch (err) {
       console.error('Error resolving approval via API:', err);
-      // Fallback local resolve
-      setApprovals((prev) => prev.filter((a) => a.id !== approvalId));
     }
   };
 
   const pendingApprovalsCount = approvals.length;
-  const blockedCountToday = transactions.filter((t) => t.decision === 'BLOCKED').length;
 
   return (
     <PolicyContext.Provider
@@ -340,6 +267,7 @@ export const PolicyProvider = ({ children }) => {
         pendingApprovalsCount,
         blockedCountToday,
         toggleAgentStatus,
+        authorizeAgent,
         updateAgentPolicy,
         createAgent,
         evaluatePayment,

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { ShieldCheck, Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
+import { ShieldCheck, Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, Loader2, UserCheck, Code2, Sparkles } from 'lucide-react';
 
 export default function Login({ onNavigateRegister }) {
   const { login } = useAuth();
@@ -12,7 +12,7 @@ export default function Login({ onNavigateRegister }) {
   const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setError('');
 
     if (!email || !password) {
@@ -26,6 +26,23 @@ export default function Login({ onNavigateRegister }) {
     } catch (err) {
       console.error('Login error:', err);
       const apiMsg = err.response?.data?.error || 'Failed to login. Please check your credentials or server connection.';
+      setError(apiMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleQuickLogin = async (quickEmail, quickPassword) => {
+    setEmail(quickEmail);
+    setPassword(quickPassword);
+    setError('');
+
+    try {
+      setLoading(true);
+      await login(quickEmail, quickPassword);
+    } catch (err) {
+      console.error('Quick login error:', err);
+      const apiMsg = err.response?.data?.error || 'Quick login failed. Make sure server is running.';
       setError(apiMsg);
     } finally {
       setLoading(false);
@@ -53,6 +70,53 @@ export default function Login({ onNavigateRegister }) {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="razorpay-card py-8 px-6 sm:px-10">
+
+          {/* Quick Demo Login Buttons */}
+          <div className="mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200/90 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center space-x-1">
+                <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Quick Demo Login Buttons</span>
+              </span>
+              <span className="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-full">1-Click</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => handleQuickLogin('jaison7373@gmail.com', 'jaison')}
+                disabled={loading}
+                className="p-2.5 bg-white hover:bg-blue-50/80 border border-slate-200 hover:border-blue-300 rounded-xl text-left transition-all shadow-2xs group cursor-pointer"
+              >
+                <div className="flex items-center space-x-2">
+                  <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
+                    <UserCheck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="block text-xs font-bold text-slate-900 group-hover:text-blue-700">User Login</span>
+                    <span className="block text-[10px] text-slate-400 font-mono">jaison7373@...</span>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleQuickLogin('developer@gmail.com', 'password')}
+                disabled={loading}
+                className="p-2.5 bg-white hover:bg-purple-50/80 border border-slate-200 hover:border-purple-300 rounded-xl text-left transition-all shadow-2xs group cursor-pointer"
+              >
+                <div className="flex items-center space-x-2">
+                  <div className="w-7 h-7 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center">
+                    <Code2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="block text-xs font-bold text-slate-900 group-hover:text-purple-700">Dev Login</span>
+                    <span className="block text-[10px] text-slate-400 font-mono">developer@...</span>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
 
           {/* Error Banner */}
           {error && (

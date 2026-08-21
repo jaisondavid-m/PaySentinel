@@ -23,6 +23,13 @@ const (
 	DecisionRejected         DecisionStatus = "REJECTED"
 )
 
+type AuthorizationStatus string
+
+const (
+	AuthorizationStatusAuthorized AuthorizationStatus = "AUTHORIZED"
+	AuthorizationStatusRevoked    AuthorizationStatus = "REVOKED"
+)
+
 // Agent represents an AI payment agent created by a developer
 type Agent struct {
 	ID          uint           `gorm:"primaryKey" json:"id"`
@@ -37,8 +44,9 @@ type Agent struct {
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
 
 	// Relationships
-	Permissions []AgentPermission `gorm:"foreignKey:AgentID;references:ID;constraint:fk_agent_perm_agent,OnDelete:CASCADE;" json:"permissions,omitempty"`
-	Policies    []AgentPolicy     `gorm:"foreignKey:AgentID;references:ID;constraint:fk_agent_pol_agent,OnDelete:CASCADE;" json:"policies,omitempty"`
+	Permissions    []AgentPermission    `gorm:"foreignKey:AgentID;references:ID;constraint:fk_agent_perm_agent,OnDelete:CASCADE;" json:"permissions,omitempty"`
+	Authorizations []AgentAuthorization `gorm:"foreignKey:AgentID;references:ID;constraint:fk_agent_auth_agent,OnDelete:CASCADE;" json:"authorizations,omitempty"`
+	Policies       []AgentPolicy        `gorm:"foreignKey:AgentID;references:ID;constraint:fk_agent_pol_agent,OnDelete:CASCADE;" json:"policies,omitempty"`
 }
 
 // AgentPermission represents developer-requested capabilities
@@ -50,37 +58,55 @@ type AgentPermission struct {
 	CreatedAt      time.Time `json:"created_at"`
 }
 
-// AgentPolicy represents user-authorized financial policies for an agent
+// AgentAuthorization tracks explicit user authorization of an agent
+type AgentAuthorization struct {
+	ID           uint                `gorm:"primaryKey" json:"id"`
+	AgentID      uint                `gorm:"not null;index" json:"agent_id"`
+	UserID       uint                `gorm:"not null;index" json:"user_id"`
+	User         User                `gorm:"foreignKey:UserID;references:ID;constraint:fk_agent_auth_user,OnDelete:CASCADE;" json:"user,omitempty"`
+	Status       AuthorizationStatus `gorm:"type:varchar(20);default:'AUTHORIZED';not null" json:"status"`
+	AuthorizedAt time.Time           `json:"authorized_at"`
+	RevokedAt    *time.Time          `json:"revoked_at,omitempty"`
+	CreatedAt    time.Time           `json:"created_at"`
+	UpdatedAt    time.Time           `json:"updated_at"`
+}
+
+// AgentPolicy represents user-authorized financial policies for an agent using integer Paise & float Rupees
 type AgentPolicy struct {
 	ID                         uint      `gorm:"primaryKey" json:"id"`
 	AgentID                    uint      `gorm:"not null;index" json:"agent_id"`
 	UserID                     uint      `gorm:"not null;index" json:"user_id"`
-	MaxTransactionAmount       float64   `gorm:"type:decimal(12,2);default:3000.00;not null" json:"max_transaction_amount"`
-	DailyLimit                 float64   `gorm:"type:decimal(12,2);default:7000.00;not null" json:"daily_limit"`
-	ApprovalThreshold          float64   `gorm:"type:decimal(12,2);default:2000.00;not null" json:"approval_threshold"`
+	MaxTransactionPaise       int64     `gorm:"default:300000;not null" json:"max_transaction_paise"`
+	DailyLimitPaise           int64     `gorm:"default:700000;not null" json:"daily_limit_paise"`
+	ApprovalThresholdPaise    int64     `gorm:"default:200000;not null" json:"approval_threshold_paise"`
+	MaxTransactionAmount       float64   `gorm:"type:decimal(12,2);default:3000.00" json:"max_transaction_amount"`
+	DailyLimit                 float64   `gorm:"type:decimal(12,2);default:7000.00" json:"daily_limit"`
+	ApprovalThreshold          float64   `gorm:"type:decimal(12,2);default:2000.00" json:"approval_threshold"`
 	UnknownMerchantAction      string    `gorm:"type:varchar(50);default:'ask_approval';not null" json:"unknown_merchant_action"`
 	SuspiciousTransactionAction string   `gorm:"type:varchar(50);default:'block';not null" json:"suspicious_transaction_action"`
 	CreatedAt                  time.Time `json:"created_at"`
 	UpdatedAt                  time.Time `json:"updated_at"`
 
-	Categories []AgentCategory `gorm:"foreignKey:AgentID;references:AgentID;constraint:fk_pol_categories" json:"categories,omitempty"`
-	Merchants  []AgentMerchant  `gorm:"foreignKey:AgentID;references:AgentID;constraint:fk_pol_merchants" json:"merchants,omitempty"`
+	Categories []AgentCategoryPolicy `gorm:"foreignKey:AgentID;references:AgentID;-:migration" json:"categories,omitempty"`
+	Merchants  []AgentMerchantPolicy  `gorm:"foreignKey:AgentID;references:AgentID;-:migration" json:"merchants,omitempty"`
 }
 
-// AgentCategory represents allowed or blocked category rules
-type AgentCategory struct {
+// AgentCategoryPolicy represents category permission rules
+type AgentCategoryPolicy struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	AgentID   uint      `gorm:"not null;index" json:"agent_id"`
+	Agent     Agent     `gorm:"foreignKey:AgentID;references:ID;constraint:fk_acp_agent_id,OnDelete:CASCADE;" json:"agent,omitempty"`
 	UserID    uint      `gorm:"not null;index" json:"user_id"`
 	Category  string    `gorm:"type:varchar(100);not null" json:"category"`
 	Allowed   bool      `gorm:"default:true;not null" json:"allowed"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// AgentMerchant represents merchant rules
-type AgentMerchant struct {
+// AgentMerchantPolicy represents merchant permission rules
+type AgentMerchantPolicy struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	AgentID   uint      `gorm:"not null;index" json:"agent_id"`
+	Agent     Agent     `gorm:"foreignKey:AgentID;references:ID;constraint:fk_amp_agent_id,OnDelete:CASCADE;" json:"agent,omitempty"`
 	UserID    uint      `gorm:"not null;index" json:"user_id"`
 	Merchant  string    `gorm:"type:varchar(150);not null" json:"merchant"`
 	Allowed   bool      `gorm:"default:true;not null" json:"allowed"`
@@ -95,7 +121,8 @@ type PaymentRequest struct {
 	UserID         uint           `gorm:"not null;index" json:"user_id"`
 	User           User           `gorm:"foreignKey:UserID;references:ID;constraint:fk_pr_user_id,OnDelete:CASCADE;" json:"user,omitempty"`
 	Merchant       string         `gorm:"type:varchar(150);not null" json:"merchant"`
-	Amount         float64        `gorm:"type:decimal(12,2);not null" json:"amount"`
+	AmountPaise    int64          `gorm:"default:0;not null" json:"amount_paise"`
+	Amount         float64        `gorm:"type:decimal(12,2);default:0.00" json:"amount"`
 	Currency       string         `gorm:"type:varchar(10);default:'INR';not null" json:"currency"`
 	Category       string         `gorm:"type:varchar(100);not null" json:"category"`
 	Description    string         `gorm:"type:text" json:"description"`

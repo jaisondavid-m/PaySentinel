@@ -63,6 +63,8 @@ func SetupRouter() *gin.Engine {
 				userRoutes.GET("/dashboard", controllers.UserGetDashboard)
 				userRoutes.GET("/agents", controllers.UserListAgents)
 				userRoutes.GET("/agents/:id", controllers.UserGetAgent)
+				userRoutes.POST("/agents/:id/authorize", controllers.UserAuthorizeAgent)
+				userRoutes.GET("/agents/:id/policy", controllers.UserGetAgent)
 				userRoutes.PATCH("/agents/:id/policy", controllers.UserUpdatePolicy)
 				userRoutes.PATCH("/agents/:id/status", controllers.UserUpdateAgentStatus)
 

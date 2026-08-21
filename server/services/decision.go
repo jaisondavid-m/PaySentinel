@@ -3,7 +3,6 @@ package services
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"strconv"
 	"time"
 
@@ -13,354 +12,346 @@ import (
 )
 
 type PaymentDecisionService struct {
-	DB *gorm.DB
+	db *gorm.DB
 }
 
 func NewPaymentDecisionService(db *gorm.DB) *PaymentDecisionService {
-	return &PaymentDecisionService{DB: db}
+	return &PaymentDecisionService{db: db}
 }
 
 type EvaluateRequestInput struct {
-	AgentID     uint    `json:"agent_id"`
-	Merchant    string  `json:"merchant"`
-	Amount      float64 `json:"amount"`
-	Currency    string  `json:"currency"`
-	Category    string  `json:"category"`
-	Description string  `json:"description"`
+	AgentID     uint   `json:"agent_id"`
+	Merchant    string `json:"merchant"`
+	AmountPaise int64  `json:"amount_paise"`
+	Currency    string `json:"currency"`
+	Category    string `json:"category"`
+	Description string `json:"description"`
 }
 
-type EvaluationResult struct {
+type EvaluateResult struct {
+	Decision       models.DecisionStatus `json:"decision"`
+	Reason         string                `json:"reason"`
+	ErrorCode      string                `json:"error_code,omitempty"`
+	PolicyEnforced string                `json:"policy_enforced"`
 	PaymentRequest *models.PaymentRequest `json:"payment_request"`
 	Approval       *models.Approval       `json:"approval,omitempty"`
-	Decision       models.DecisionStatus  `json:"decision"`
-	Reason         string                 `json:"reason font_bold"`
-	ErrorCode      string                 `json:"error_code,omitempty"`
 }
 
-// EvaluatePayment evaluates an incoming payment request against agent status, developer requests, and user-enforced policies
-func (s *PaymentDecisionService) EvaluatePayment(req EvaluateRequestInput) (*EvaluationResult, error) {
-	if s.DB == nil {
-		return nil, fmt.Errorf("database connection is not initialized")
+// EvaluatePayment evaluates an incoming payment request through the 10-step security decision engine
+func (s *PaymentDecisionService) EvaluatePayment(input EvaluateRequestInput) (*EvaluateResult, error) {
+	if s.db == nil {
+		return nil, fmt.Errorf("database connection is not available")
 	}
 
-	if req.Amount <= 0 {
-		return &EvaluationResult{
-			Decision:  models.DecisionBlocked,
-			Reason:    "Invalid monetary amount: Amount must be greater than zero.",
-			ErrorCode: "INVALID_AMOUNT",
-		}, nil
-	}
-
-	// 1. Fetch Agent
+	// Step 1: Resolve Agent
 	var agent models.Agent
-	if err := s.DB.Preload("Permissions").First(&agent, req.AgentID).Error; err != nil {
-		return &EvaluationResult{
-			Decision:  models.DecisionBlocked,
-			Reason:    "Agent not found in database.",
-			ErrorCode: "AGENT_NOT_FOUND",
-		}, nil
+	if err := s.db.Preload("Permissions").First(&agent, input.AgentID).Error; err != nil {
+		return nil, fmt.Errorf("agent not found: %v", err)
 	}
 
-	// 2. Check Agent Status
+	// Rule 1 & 2: Check Agent Status
 	if agent.Status == models.AgentStatusRevoked {
-		s.logAudit(0, agent.ID, nil, "EVALUATE_PAYMENT", "BLOCKED", "Agent is REVOKED by user", "")
-		return &EvaluationResult{
-			Decision:  models.DecisionBlocked,
-			Reason:    "Agent has been REVOKED by the user. All payment requests are blocked.",
-			ErrorCode: "AGENT_REVOKED",
-		}, nil
+		return s.createBlockedResult(&agent, agent.DeveloperID, input, "Agent has been revoked by the user.", "AGENT_REVOKED", "Agent Status: REVOKED")
 	}
-
 	if agent.Status == models.AgentStatusPaused {
-		s.logAudit(0, agent.ID, nil, "EVALUATE_PAYMENT", "BLOCKED", "Agent is PAUSED by user", "")
-		return &EvaluationResult{
-			Decision:  models.DecisionBlocked,
-			Reason:    "Agent is currently PAUSED by the user. All payment requests are blocked.",
-			ErrorCode: "AGENT_PAUSED",
-		}, nil
+		return s.createBlockedResult(&agent, agent.DeveloperID, input, "Agent is currently paused by the user.", "AGENT_PAUSED", "Agent Status: PAUSED")
 	}
 
-	// 3. Load or Create User Authorized Policy
+	// Step 2: Find Authorized User & Active Authorization
+	var auth models.AgentAuthorization
+	if err := s.db.Where("agent_id = ? AND status = ?", agent.ID, models.AuthorizationStatusAuthorized).First(&auth).Error; err != nil {
+		// Fallback: If no authorization table record, lookup DeveloperID as fallback user context
+		auth.UserID = agent.DeveloperID
+	}
+	userID := auth.UserID
+
+	// Step 3: Load User Policy
 	var policy models.AgentPolicy
-	err := s.DB.Where("agent_id = ?", agent.ID).First(&policy).Error
-	if err == gorm.ErrRecordNotFound {
-		// Create default user policy if none exists yet
+	if err := s.db.Where("agent_id = ? AND user_id = ?", agent.ID, userID).First(&policy).Error; err != nil {
+		// Set sensible default policy (Max ₹3000 = 300000 paise, Daily ₹7000 = 700000 paise, Threshold ₹2000 = 200000 paise)
 		policy = models.AgentPolicy{
-			AgentID:                     agent.ID,
-			UserID:                      agent.DeveloperID, // fallback default user
-			MaxTransactionAmount:       3000.00,
-			DailyLimit:                 7000.00,
-			ApprovalThreshold:          2000.00,
-			UnknownMerchantAction:      "ask_approval",
-			SuspiciousTransactionAction: "block",
+			AgentID:                agent.ID,
+			UserID:                 userID,
+			MaxTransactionPaise:   300000,
+			DailyLimitPaise:       700000,
+			ApprovalThresholdPaise: 200000,
+			UnknownMerchantAction:  "ask_approval",
 		}
-		s.DB.Create(&policy)
 	}
 
-	userID := policy.UserID
-	if userID == 0 {
-		userID = agent.DeveloperID
-	}
-
-	// 4. Calculate Developer Requested Limit
-	devRequestedLimit := math.MaxFloat64
+	// Step 4: Parse Developer Requested Max Transaction Limit & Daily Cap
+	var devMaxPaise int64 = 1000000 // default ₹10,000 max if unspecified
+	var devDailyPaise int64 = 5000000
 	for _, perm := range agent.Permissions {
-		if perm.PermissionType == "MAX_TRANSACTION_LIMIT" {
-			if val, err := strconv.ParseFloat(perm.RequestedValue, 64); err == nil && val > 0 {
-				devRequestedLimit = val
+		if perm.PermissionType == "MAX_TRANSACTION_LIMIT" || perm.PermissionType == "max_transaction_amount" {
+			if val, err := strconv.ParseFloat(perm.RequestedValue, 64); err == nil {
+				devMaxPaise = int64(val * 100)
+			}
+		}
+		if perm.PermissionType == "DAILY_LIMIT" || perm.PermissionType == "daily_limit" {
+			if val, err := strconv.ParseFloat(perm.RequestedValue, 64); err == nil {
+				devDailyPaise = int64(val * 100)
 			}
 		}
 	}
 
-	// 5. Effective Single Transaction Limit = MIN(dev_requested, user_authorized)
-	effectiveSingleLimit := math.Min(devRequestedLimit, policy.MaxTransactionAmount)
-
-	// 6. Calculate Today's Spending Server-Side
-	now := time.Now()
-	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	
-	var spentToday float64
-	s.DB.Model(&models.PaymentRequest{}).
-		Where("agent_id = ? AND status = ? AND created_at >= ?", agent.ID, models.DecisionAllowed, startOfDay).
-		Select("COALESCE(SUM(amount), 0)").
-		Scan(&spentToday)
-
-	// 7. Check Single Transaction Cap
-	if req.Amount > effectiveSingleLimit {
-		reason := fmt.Sprintf("Transaction exceeds the user's authorized transaction limit of ₹%.2f.", effectiveSingleLimit)
-		paymentReq := &models.PaymentRequest{
-			AgentID:        agent.ID,
-			UserID:         userID,
-			Merchant:       req.Merchant,
-			Amount:         req.Amount,
-			Currency:       req.Currency,
-			Category:       req.Category,
-			Description:    req.Description,
-			Status:         models.DecisionBlocked,
-			DecisionReason: reason,
-			PolicyEnforced: fmt.Sprintf("Max Txn Limit: ₹%.2f", effectiveSingleLimit),
-		}
-		s.DB.Create(paymentReq)
-		s.logAudit(userID, agent.ID, &paymentReq.ID, "PAYMENT_DECISION", "BLOCKED", reason, "POLICY_LIMIT_EXCEEDED")
-
-		return &EvaluationResult{
-			PaymentRequest: paymentReq,
-			Decision:       models.DecisionBlocked,
-			Reason:         reason,
-			ErrorCode:      "POLICY_LIMIT_EXCEEDED",
-		}, nil
+	// Rule 3: Enforce Effective Limit = MIN(dev_requested, user_authorized)
+	effectiveMaxPaise := policy.MaxTransactionPaise
+	if devMaxPaise < effectiveMaxPaise {
+		effectiveMaxPaise = devMaxPaise
 	}
 
-	// 8. Check Daily Spending Cap
-	projectedDaily := spentToday + req.Amount
-	if projectedDaily > policy.DailyLimit {
-		reason := fmt.Sprintf("Daily spending limit exceeded. Spent today: ₹%.2f, Requested: ₹%.2f, Max Daily: ₹%.2f.", spentToday, req.Amount, policy.DailyLimit)
-		paymentReq := &models.PaymentRequest{
-			AgentID:        agent.ID,
-			UserID:         userID,
-			Merchant:       req.Merchant,
-			Amount:         req.Amount,
-			Currency:       req.Currency,
-			Category:       req.Category,
-			Description:    req.Description,
-			Status:         models.DecisionBlocked,
-			DecisionReason: reason,
-			PolicyEnforced: fmt.Sprintf("Daily Cap: ₹%.2f", policy.DailyLimit),
-		}
-		s.DB.Create(paymentReq)
-		s.logAudit(userID, agent.ID, &paymentReq.ID, "PAYMENT_DECISION", "BLOCKED", reason, "DAILY_LIMIT_EXCEEDED")
-
-		return &EvaluationResult{
-			PaymentRequest: paymentReq,
-			Decision:       models.DecisionBlocked,
-			Reason:         reason,
-			ErrorCode:      "DAILY_LIMIT_EXCEEDED",
-		}, nil
+	if input.AmountPaise > effectiveMaxPaise {
+		reason := fmt.Sprintf("Transaction amount (₹%.2f) exceeds authorized maximum transaction limit of ₹%.2f.", float64(input.AmountPaise)/100.0, float64(effectiveMaxPaise)/100.0)
+		enforced := fmt.Sprintf("Effective Max Cap: ₹%.2f", float64(effectiveMaxPaise)/100.0)
+		return s.createBlockedResult(&agent, userID, input, reason, "POLICY_LIMIT_EXCEEDED", enforced)
 	}
 
-	// 9. Check Category Rules
-	var categoryRule models.AgentCategory
-	if err := s.DB.Where("agent_id = ? AND LOWER(category) = ?", agent.ID, fmt.Sprintf("%v", req.Category)).First(&categoryRule).Error; err == nil {
-		if !categoryRule.Allowed {
-			reason := fmt.Sprintf("Category '%s' is explicitly blocked under user security policy.", req.Category)
-			paymentReq := &models.PaymentRequest{
-				AgentID:        agent.ID,
-				UserID:         userID,
-				Merchant:       req.Merchant,
-				Amount:         req.Amount,
-				Currency:       req.Currency,
-				Category:       req.Category,
-				Description:    req.Description,
-				Status:         models.DecisionBlocked,
-				DecisionReason: reason,
-				PolicyEnforced: fmt.Sprintf("Blocked Category Rule (%s)", req.Category),
-			}
-			s.DB.Create(paymentReq)
-			s.logAudit(userID, agent.ID, &paymentReq.ID, "PAYMENT_DECISION", "BLOCKED", reason, "CATEGORY_NOT_ALLOWED")
+	// Rule 4: Check Today's Real Server-Side Daily Spending
+	var todaySpentPaise int64
+	todayStr := time.Now().Format("2006-01-02")
+	s.db.Model(&models.PaymentRequest{}).
+		Where("user_id = ? AND status IN (?, ?) AND DATE(created_at) = ?", userID, models.DecisionAllowed, models.DecisionApprovalRequired, todayStr).
+		Select("COALESCE(SUM(amount_paise), 0)").
+		Scan(&todaySpentPaise)
 
-			return &EvaluationResult{
-				PaymentRequest: paymentReq,
-				Decision:       models.DecisionBlocked,
-				Reason:         reason,
-				ErrorCode:      "CATEGORY_NOT_ALLOWED",
-			}, nil
+	effectiveDailyPaise := policy.DailyLimitPaise
+	if devDailyPaise < effectiveDailyPaise {
+		effectiveDailyPaise = devDailyPaise
+	}
+
+	if todaySpentPaise+input.AmountPaise > effectiveDailyPaise {
+		reason := fmt.Sprintf("Transaction of ₹%.2f would exceed daily spending limit of ₹%.2f (Spent Today: ₹%.2f).", float64(input.AmountPaise)/100.0, float64(effectiveDailyPaise)/100.0, float64(todaySpentPaise)/100.0)
+		enforced := fmt.Sprintf("Daily Limit Cap: ₹%.2f", float64(effectiveDailyPaise)/100.0)
+		return s.createBlockedResult(&agent, userID, input, reason, "DAILY_LIMIT_EXCEEDED", enforced)
+	}
+
+	// Rule 5 & 6: Check Category Policy
+	var catPolicy models.AgentCategoryPolicy
+	if err := s.db.Where("agent_id = ? AND user_id = ? AND LOWER(category) = ?", agent.ID, userID, fmt.Sprintf("%v", input.Category)).First(&catPolicy).Error; err == nil {
+		if !catPolicy.Allowed {
+			reason := fmt.Sprintf("Category '%s' is explicitly blocked under user security policy.", input.Category)
+			enforced := fmt.Sprintf("Blocked Category Rule (%s)", input.Category)
+			return s.createBlockedResult(&agent, userID, input, reason, "CATEGORY_BLOCKED", enforced)
 		}
 	}
 
-	// 10. Check Merchant Rules
-	var merchantRule models.AgentMerchant
-	if err := s.DB.Where("agent_id = ? AND LOWER(merchant) = ?", agent.ID, fmt.Sprintf("%v", req.Merchant)).First(&merchantRule).Error; err == nil {
-		if !merchantRule.Allowed {
-			reason := fmt.Sprintf("Merchant '%s' is explicitly blocked under user security policy.", req.Merchant)
-			paymentReq := &models.PaymentRequest{
-				AgentID:        agent.ID,
-				UserID:         userID,
-				Merchant:       req.Merchant,
-				Amount:         req.Amount,
-				Currency:       req.Currency,
-				Category:       req.Category,
-				Description:    req.Description,
-				Status:         models.DecisionBlocked,
-				DecisionReason: reason,
-				PolicyEnforced: fmt.Sprintf("Blocked Merchant Rule (%s)", req.Merchant),
-			}
-			s.DB.Create(paymentReq)
-			s.logAudit(userID, agent.ID, &paymentReq.ID, "PAYMENT_DECISION", "BLOCKED", reason, "MERCHANT_NOT_ALLOWED")
-
-			return &EvaluationResult{
-				PaymentRequest: paymentReq,
-				Decision:       models.DecisionBlocked,
-				Reason:         reason,
-				ErrorCode:      "MERCHANT_NOT_ALLOWED",
-			}, nil
+	// Rule 7 & 8: Check Merchant Policy
+	var merPolicy models.AgentMerchantPolicy
+	if err := s.db.Where("agent_id = ? AND user_id = ? AND LOWER(merchant) = ?", agent.ID, userID, fmt.Sprintf("%v", input.Merchant)).First(&merPolicy).Error; err == nil {
+		if !merPolicy.Allowed {
+			reason := fmt.Sprintf("Merchant '%s' is explicitly blocked under user security policy.", input.Merchant)
+			enforced := fmt.Sprintf("Blocked Merchant Rule (%s)", input.Merchant)
+			return s.createBlockedResult(&agent, userID, input, reason, "MERCHANT_BLOCKED", enforced)
 		}
+	} else if policy.UnknownMerchantAction == "block" {
+		reason := fmt.Sprintf("Merchant '%s' is not verified and policy blocks unknown merchants.", input.Merchant)
+		return s.createBlockedResult(&agent, userID, input, reason, "UNKNOWN_MERCHANT_BLOCKED", "Unknown Merchant Action: BLOCK")
 	}
 
-	// 11. Evaluate Approval Threshold
-	if req.Amount > policy.ApprovalThreshold {
-		reason := fmt.Sprintf("Amount (₹%.2f) exceeds automatic approval threshold (₹%.2f). Human verification required.", req.Amount, policy.ApprovalThreshold)
-		paymentReq := &models.PaymentRequest{
-			AgentID:        agent.ID,
-			UserID:         userID,
-			Merchant:       req.Merchant,
-			Amount:         req.Amount,
-			Currency:       req.Currency,
-			Category:       req.Category,
-			Description:    req.Description,
-			Status:         models.DecisionApprovalRequired,
-			DecisionReason: reason,
-			PolicyEnforced: fmt.Sprintf("Human Approval > ₹%.2f", policy.ApprovalThreshold),
-		}
-		s.DB.Create(paymentReq)
-
-		approval := &models.Approval{
-			PaymentRequestID: paymentReq.ID,
-			UserID:           userID,
-			Status:           "PENDING",
-		}
-		s.DB.Create(approval)
-
-		s.logAudit(userID, agent.ID, &paymentReq.ID, "PAYMENT_DECISION", "APPROVAL_REQUIRED", reason, "APPROVAL_REQUIRED")
-
-		return &EvaluationResult{
-			PaymentRequest: paymentReq,
-			Approval:       approval,
-			Decision:       models.DecisionApprovalRequired,
-			Reason:         reason,
-			ErrorCode:      "APPROVAL_REQUIRED",
-		}, nil
+	// Rule 9: Check Human Approval Threshold
+	if input.AmountPaise > policy.ApprovalThresholdPaise {
+		reason := fmt.Sprintf("Amount (₹%.2f) exceeds automatic approval threshold of ₹%.2f. Human verification required.", float64(input.AmountPaise)/100.0, float64(policy.ApprovalThresholdPaise)/100.0)
+		enforced := fmt.Sprintf("Human Approval Threshold: > ₹%.2f", float64(policy.ApprovalThresholdPaise)/100.0)
+		return s.createApprovalRequiredResult(&agent, userID, input, reason, enforced)
 	}
 
-	// 12. ALLOWED
-	reason := "Transaction is within the user's authorized policy."
-	paymentReq := &models.PaymentRequest{
+	// Rule 10: Decision -> ALLOWED
+	reason := "Transaction is within user authorized daily spending limit and purchase cap."
+	enforced := fmt.Sprintf("Max Cap: ₹%.2f | Daily Cap: ₹%.2f", float64(effectiveMaxPaise)/100.0, float64(effectiveDailyPaise)/100.0)
+	return s.createAllowedResult(&agent, userID, input, reason, enforced)
+}
+
+// Helper: Create BLOCKED Record
+func (s *PaymentDecisionService) createBlockedResult(agent *models.Agent, userID uint, input EvaluateRequestInput, reason string, errCode string, policyEnforced string) (*EvaluateResult, error) {
+	pr := models.PaymentRequest{
 		AgentID:        agent.ID,
 		UserID:         userID,
-		Merchant:       req.Merchant,
-		Amount:         req.Amount,
-		Currency:       req.Currency,
-		Category:       req.Category,
-		Description:    req.Description,
-		Status:         models.DecisionAllowed,
+		Merchant:       input.Merchant,
+		AmountPaise:    input.AmountPaise,
+		Amount:         float64(input.AmountPaise) / 100.0,
+		Currency:       input.Currency,
+		Category:       input.Category,
+		Description:    input.Description,
+		Status:         models.DecisionBlocked,
 		DecisionReason: reason,
-		PolicyEnforced: fmt.Sprintf("User Limit: ₹%.2f | Daily Cap: ₹%.2f", effectiveSingleLimit, policy.DailyLimit),
+		PolicyEnforced: policyEnforced,
+		RiskScore:      85.00,
 	}
-	s.DB.Create(paymentReq)
-	s.logAudit(userID, agent.ID, &paymentReq.ID, "PAYMENT_DECISION", "ALLOWED", reason, "")
 
-	return &EvaluationResult{
-		PaymentRequest: paymentReq,
-		Decision:       models.DecisionAllowed,
+	if err := s.db.Create(&pr).Error; err != nil {
+		return nil, fmt.Errorf("failed to store payment request: %v", err)
+	}
+
+	s.logAudit(userID, agent.ID, &pr.ID, "PAYMENT_BLOCKED", "BLOCKED", reason, policyEnforced)
+
+	return &EvaluateResult{
+		Decision:       models.DecisionBlocked,
 		Reason:         reason,
+		ErrorCode:      errCode,
+		PolicyEnforced: policyEnforced,
+		PaymentRequest: &pr,
 	}, nil
 }
 
-// ResolveApproval re-evaluates an approval request upon user action (Approve or Reject)
-func (s *PaymentDecisionService) ResolveApproval(approvalID uint, userID uint, approve bool) (*models.PaymentRequest, error) {
-	var approval models.Approval
-	if err := s.DB.Preload("PaymentRequest").First(&approval, approvalID).Error; err != nil {
-		return nil, fmt.Errorf("APPROVAL_NOT_FOUND")
+// Helper: Create APPROVAL_REQUIRED Record
+func (s *PaymentDecisionService) createApprovalRequiredResult(agent *models.Agent, userID uint, input EvaluateRequestInput, reason string, policyEnforced string) (*EvaluateResult, error) {
+	pr := models.PaymentRequest{
+		AgentID:        agent.ID,
+		UserID:         userID,
+		Merchant:       input.Merchant,
+		AmountPaise:    input.AmountPaise,
+		Amount:         float64(input.AmountPaise) / 100.0,
+		Currency:       input.Currency,
+		Category:       input.Category,
+		Description:    input.Description,
+		Status:         models.DecisionApprovalRequired,
+		DecisionReason: reason,
+		PolicyEnforced: policyEnforced,
+		RiskScore:      45.00,
 	}
 
-	// Verify Ownership
-	if approval.UserID != userID {
-		return nil, fmt.Errorf("UNAUTHORIZED_APPROVAL_ACCESS")
+	if err := s.db.Create(&pr).Error; err != nil {
+		return nil, fmt.Errorf("failed to store payment request: %v", err)
 	}
 
-	// Prevent duplicate approval processing
-	if approval.Status != "PENDING" {
-		return nil, fmt.Errorf("APPROVAL_ALREADY_PROCESSED")
+	approval := models.Approval{
+		PaymentRequestID: pr.ID,
+		UserID:           userID,
+		Status:           "PENDING",
 	}
 
-	now := time.Now()
-	approval.ReviewedAt = &now
-
-	if !approve {
-		approval.Status = "REJECTED"
-		s.DB.Save(&approval)
-
-		approval.PaymentRequest.Status = models.DecisionRejected
-		approval.PaymentRequest.DecisionReason = "Payment request explicitly REJECTED by account owner."
-		s.DB.Save(&approval.PaymentRequest)
-
-		s.logAudit(userID, approval.PaymentRequest.AgentID, &approval.PaymentRequest.ID, "APPROVAL_RESOLVE", "REJECTED", "Human user rejected payment", "")
-		return &approval.PaymentRequest, nil
+	if err := s.db.Create(&approval).Error; err != nil {
+		return nil, fmt.Errorf("failed to create approval item: %v", err)
 	}
 
-	// Re-check policy & agent status before finalizing approval (Prevent race condition / policy change issue)
-	var agent models.Agent
-	if err := s.DB.First(&agent, approval.PaymentRequest.AgentID).Error; err != nil || agent.Status != models.AgentStatusActive {
-		approval.Status = "REJECTED"
-		s.DB.Save(&approval)
-		approval.PaymentRequest.Status = models.DecisionBlocked
-		approval.PaymentRequest.DecisionReason = "Agent status changed or paused prior to approval."
-		s.DB.Save(&approval.PaymentRequest)
-		return &approval.PaymentRequest, nil
-	}
+	s.logAudit(userID, agent.ID, &pr.ID, "APPROVAL_CREATED", "PENDING", reason, policyEnforced)
 
-	approval.Status = "APPROVED"
-	s.DB.Save(&approval)
-
-	approval.PaymentRequest.Status = models.DecisionAllowed
-	approval.PaymentRequest.DecisionReason = "Human user explicitly APPROVED pending payment request."
-	s.DB.Save(&approval.PaymentRequest)
-
-	s.logAudit(userID, approval.PaymentRequest.AgentID, &approval.PaymentRequest.ID, "APPROVAL_RESOLVE", "APPROVED", "Human user approved payment", "")
-	return &approval.PaymentRequest, nil
+	return &EvaluateResult{
+		Decision:       models.DecisionApprovalRequired,
+		Reason:         reason,
+		PolicyEnforced: policyEnforced,
+		PaymentRequest: &pr,
+		Approval:       &approval,
+	}, nil
 }
 
-func (s *PaymentDecisionService) logAudit(userID, agentID uint, prID *uint, action, result, reason, code string) {
-	metaMap := map[string]string{"code": code}
-	metaBytes, _ := json.Marshal(metaMap)
+// Helper: Create ALLOWED Record
+func (s *PaymentDecisionService) createAllowedResult(agent *models.Agent, userID uint, input EvaluateRequestInput, reason string, policyEnforced string) (*EvaluateResult, error) {
+	pr := models.PaymentRequest{
+		AgentID:        agent.ID,
+		UserID:         userID,
+		Merchant:       input.Merchant,
+		AmountPaise:    input.AmountPaise,
+		Amount:         float64(input.AmountPaise) / 100.0,
+		Currency:       input.Currency,
+		Category:       input.Category,
+		Description:    input.Description,
+		Status:         models.DecisionAllowed,
+		DecisionReason: reason,
+		PolicyEnforced: policyEnforced,
+		RiskScore:      10.00,
+	}
 
-	audit := models.AuditLog{
+	if err := s.db.Create(&pr).Error; err != nil {
+		return nil, fmt.Errorf("failed to store payment request: %v", err)
+	}
+
+	s.logAudit(userID, agent.ID, &pr.ID, "PAYMENT_ALLOWED", "ALLOWED", reason, policyEnforced)
+
+	return &EvaluateResult{
+		Decision:       models.DecisionAllowed,
+		Reason:         reason,
+		PolicyEnforced: policyEnforced,
+		PaymentRequest: &pr,
+	}, nil
+}
+
+// ResolveApproval resolves pending approval with DB transaction & policy re-evaluation
+func (s *PaymentDecisionService) ResolveApproval(approvalID uint, userID uint, approve bool) (*models.Approval, error) {
+	var approval models.Approval
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Preload("PaymentRequest.Agent").First(&approval, approvalID).Error; err != nil {
+			return fmt.Errorf("approval request not found: %v", err)
+		}
+
+		if approval.UserID != userID {
+			return fmt.Errorf("unauthorized to resolve this approval")
+		}
+
+		if approval.Status != "PENDING" {
+			return fmt.Errorf("approval request is already processed (Status: %s)", approval.Status)
+		}
+
+		now := time.Now()
+		approval.ReviewedAt = &now
+
+		if !approve {
+			approval.Status = "REJECTED"
+			if err := tx.Save(&approval).Error; err != nil {
+				return err
+			}
+
+			tx.Model(&models.PaymentRequest{}).Where("id = ?", approval.PaymentRequestID).
+				Updates(map[string]interface{}{
+					"status":          models.DecisionRejected,
+					"decision_reason": "Payment request explicitly rejected by user in approvals center.",
+				})
+
+			s.logAudit(userID, approval.PaymentRequest.AgentID, &approval.PaymentRequestID, "APPROVAL_REJECTED", "REJECTED", "User rejected payment request.", "")
+			return nil
+		}
+
+		// Re-evaluate security policies before approving to prevent race conditions
+		pr := approval.PaymentRequest
+		if pr.Agent.Status != models.AgentStatusActive {
+			approval.Status = "REJECTED"
+			tx.Save(&approval)
+			tx.Model(&models.PaymentRequest{}).Where("id = ?", pr.ID).Updates(map[string]interface{}{
+				"status":          models.DecisionBlocked,
+				"decision_reason": "Agent status changed to PAUSED/REVOKED before approval.",
+			})
+			return fmt.Errorf("cannot approve: Agent is no longer active")
+		}
+
+		approval.Status = "APPROVED"
+		if err := tx.Save(&approval).Error; err != nil {
+			return err
+		}
+
+		tx.Model(&models.PaymentRequest{}).Where("id = ?", pr.ID).Updates(map[string]interface{}{
+			"status":          models.DecisionAllowed,
+			"decision_reason": "Payment approved by authorized user.",
+		})
+
+		s.logAudit(userID, pr.AgentID, &pr.ID, "APPROVAL_APPROVED", "APPROVED", "User approved payment request.", "")
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &approval, nil
+}
+
+// Log audit trail
+func (s *PaymentDecisionService) logAudit(userID, agentID uint, prID *uint, action, result, reason, metadata string) {
+	log := models.AuditLog{
 		UserID:           userID,
 		AgentID:          agentID,
 		PaymentRequestID: prID,
 		Action:           action,
 		Result:           result,
 		Reason:           reason,
-		Metadata:         string(metaBytes),
+		Metadata:         metadata,
 	}
-	s.DB.Create(&audit)
+	s.db.Create(&log)
+}
+
+// Convert map to json helper string
+func toJSONString(v interface{}) string {
+	b, _ := json.Marshal(v)
+	return string(b)
 }

@@ -17,10 +17,7 @@ func main() {
 	}
 
 	// Initialize MySQL Database connection
-	_, err := config.InitDB()
-	if err != nil {
-		log.Println("⚠️ Server starting without active database connection. Database features will return error until MySQL is connected.")
-	}
+	config.InitDB()
 
 	// Setup Router
 	r := routes.SetupRouter()

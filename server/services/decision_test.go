@@ -45,9 +45,10 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		&models.User{},
 		&models.Agent{},
 		&models.AgentPermission{},
+		&models.AgentAuthorization{},
 		&models.AgentPolicy{},
-		&models.AgentCategory{},
-		&models.AgentMerchant{},
+		&models.AgentCategoryPolicy{},
+		&models.AgentMerchantPolicy{},
 		&models.PaymentRequest{},
 		&models.Approval{},
 		&models.AuditLog{},
@@ -67,7 +68,7 @@ func TestPaymentDecision_BelowLimit_Allowed(t *testing.T) {
 	res, err := service.EvaluatePayment(EvaluateRequestInput{
 		AgentID:     1,
 		Merchant:    "Amazon",
-		Amount:      1299.00,
+		AmountPaise: 129900, // ₹1,299.00
 		Currency:    "INR",
 		Category:    "Electronics",
 		Description: "Wireless Mouse",
@@ -93,7 +94,7 @@ func TestPaymentDecision_AboveLimit_Blocked(t *testing.T) {
 	res, err := service.EvaluatePayment(EvaluateRequestInput{
 		AgentID:     1,
 		Merchant:    "Unknown Store",
-		Amount:      4500.00, // Exceeds max user limit ₹3,000
+		AmountPaise: 450000, // ₹4,500.00 (Exceeds max user limit ₹3,000.00)
 		Currency:    "INR",
 		Category:    "Electronics",
 		Description: "Bulk Gadgets",
@@ -122,7 +123,7 @@ func TestPaymentDecision_AboveThreshold_ApprovalRequired(t *testing.T) {
 	res, err := service.EvaluatePayment(EvaluateRequestInput{
 		AgentID:     1,
 		Merchant:    "Amazon",
-		Amount:      2500.00, // Exceeds approval threshold ₹2,000 but <= ₹3,000 cap
+		AmountPaise: 250000, // ₹2,500.00 (Exceeds approval threshold ₹2,000 but <= ₹3,000 cap)
 		Currency:    "INR",
 		Category:    "Electronics",
 		Description: "Laptop Stand",
@@ -137,7 +138,7 @@ func TestPaymentDecision_AboveThreshold_ApprovalRequired(t *testing.T) {
 	}
 }
 
-// 11. Developer requested ₹10,000 but user authorized ₹3,000 -> Effective limit ₹3,000
+// 4. Developer requested ₹10,000 but user authorized ₹3,000 -> Effective limit ₹3,000
 func TestPaymentDecision_DevVsUserEffectiveLimit(t *testing.T) {
 	db := setupTestDB(t)
 	if db == nil {
@@ -160,13 +161,13 @@ func TestPaymentDecision_DevVsUserEffectiveLimit(t *testing.T) {
 		RequestedValue: "10000.00",
 	})
 
-	// User authorizes max ₹3,000
+	// User authorizes max ₹3,000 (300000 paise)
 	db.Create(&models.AgentPolicy{
-		AgentID:              agent.ID,
-		UserID:               1,
-		MaxTransactionAmount: 3000.00,
-		DailyLimit:          7000.00,
-		ApprovalThreshold:   2000.00,
+		AgentID:                agent.ID,
+		UserID:                 1,
+		MaxTransactionPaise:   300000,
+		DailyLimitPaise:       700000,
+		ApprovalThresholdPaise: 200000,
 	})
 
 	service := NewPaymentDecisionService(db)
@@ -175,7 +176,7 @@ func TestPaymentDecision_DevVsUserEffectiveLimit(t *testing.T) {
 	res, err := service.EvaluatePayment(EvaluateRequestInput{
 		AgentID:     agent.ID,
 		Merchant:    "Store",
-		Amount:      4000.00,
+		AmountPaise: 400000, // ₹4,000
 		Currency:    "INR",
 		Category:    "Electronics",
 		Description: "Test Request",

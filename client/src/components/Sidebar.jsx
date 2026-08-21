@@ -1,5 +1,6 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
+import { usePolicy } from '../context/PolicyContext';
 import {
   ShieldCheck,
   LayoutDashboard,
@@ -7,20 +8,10 @@ import {
   CreditCard,
   BellRing,
   Sliders,
-  Store,
-  BarChart3,
-  AlertTriangle,
   FileText,
-  Settings,
-  Key,
-  Lock,
   Receipt,
   Activity,
   XCircle,
-  TrendingUp,
-  BookOpen,
-  Webhook,
-  FlaskConical,
   LogOut,
   ChevronRight,
   UserCheck,
@@ -29,38 +20,36 @@ import {
 
 export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) {
   const { user, logout } = useAuth();
+  const { pendingApprovalsCount, agents } = usePolicy();
   const isDev = user?.role === 'developer';
 
-  // Navigation Items per Role according to exact user specification
+  // Navigation Items per Role showing ONLY items that have working pages/content
   const userNavigation = [
     {
       group: 'MAIN',
       items: [
         { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { id: 'my-agents', label: 'My Agents', icon: Bot, badge: '2 Active' },
+        { id: 'my-agents', label: 'My Agents', icon: Bot, badge: `${agents.length} Agents` },
         { id: 'transactions', label: 'Transactions', icon: CreditCard },
-        { id: 'approvals', label: 'Approvals', icon: BellRing, badge: '1 Pending', badgeColor: 'bg-amber-100 text-amber-700' },
+        { 
+          id: 'approvals', 
+          label: 'Approvals', 
+          icon: BellRing, 
+          badge: pendingApprovalsCount > 0 ? `${pendingApprovalsCount} Pending` : null, 
+          badgeColor: 'bg-amber-100 text-amber-700' 
+        },
       ],
     },
     {
       group: 'CONTROL',
       items: [
         { id: 'policies-limits', label: 'Policies & Limits', icon: Sliders },
-        { id: 'trusted-merchants', label: 'Trusted Merchants', icon: Store },
-        { id: 'spending', label: 'Spending', icon: BarChart3 },
       ],
     },
     {
       group: 'SECURITY',
       items: [
-        { id: 'alerts', label: 'Alerts', icon: AlertTriangle },
         { id: 'activity-logs', label: 'Activity Logs', icon: FileText },
-      ],
-    },
-    {
-      group: 'ACCOUNT',
-      items: [
-        { id: 'settings', label: 'Settings', icon: Settings },
       ],
     },
   ];
@@ -70,9 +59,7 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) 
       group: 'DEVELOPER',
       items: [
         { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-        { id: 'my-agents', label: 'My Agents', icon: Bot, badge: '3 Agents' },
-        { id: 'api-keys', label: 'API Keys', icon: Key },
-        { id: 'agent-permissions', label: 'Agent Permissions', icon: Lock },
+        { id: 'my-agents', label: 'My Agents', icon: Bot, badge: `${agents.length} Agents` },
         { id: 'payment-requests', label: 'Payment Requests', icon: Receipt },
       ],
     },
@@ -81,21 +68,6 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) 
       items: [
         { id: 'agent-activity', label: 'Agent Activity', icon: Activity },
         { id: 'rejected-requests', label: 'Rejected Requests', icon: XCircle },
-        { id: 'usage-analytics', label: 'Usage & Analytics', icon: TrendingUp },
-      ],
-    },
-    {
-      group: 'INTEGRATION',
-      items: [
-        { id: 'api-docs', label: 'API Docs', icon: BookOpen },
-        { id: 'webhooks', label: 'Webhooks', icon: Webhook, badge: 'Live' },
-        { id: 'sandbox', label: 'Sandbox', icon: FlaskConical },
-      ],
-    },
-    {
-      group: 'ACCOUNT',
-      items: [
-        { id: 'settings', label: 'Settings', icon: Settings },
       ],
     },
   ];

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { usePolicy } from '../context/PolicyContext';
-import { Play, CheckCircle2, XCircle, AlertTriangle, Loader2, Sparkles, X, Shield, ArrowRight } from 'lucide-react';
+import { Play, CheckCircle2, XCircle, AlertTriangle, Loader2, Sparkles, X, Shield } from 'lucide-react';
 
 export default function SimulationModal({ isOpen, onClose }) {
   const { agents, evaluatePayment } = usePolicy();
 
-  const [agentId, setAgentId] = useState(agents[0]?.id || 'ag-1');
+  const [agentId, setAgentId] = useState(agents[0]?.id || 1);
   const [merchant, setMerchant] = useState('Amazon India');
   const [amount, setAmount] = useState('1299');
   const [category, setCategory] = useState('Electronics');
@@ -16,7 +16,7 @@ export default function SimulationModal({ isOpen, onClose }) {
 
   if (!isOpen) return null;
 
-  const handleRunSimulation = (presetReq) => {
+  const handleRunSimulation = async (presetReq) => {
     const targetAgentId = presetReq ? presetReq.agentId : agentId;
     const targetMerchant = presetReq ? presetReq.merchant : merchant;
     const targetAmount = presetReq ? presetReq.amount : amount;
@@ -39,17 +39,20 @@ export default function SimulationModal({ isOpen, onClose }) {
     setTimeout(() => setActiveStepIndex(3), 900);
     setTimeout(() => setActiveStepIndex(4), 1200);
 
-    setTimeout(() => {
-      const res = evaluatePayment({
+    try {
+      const res = await evaluatePayment({
         agentId: targetAgentId,
         merchant: targetMerchant,
         amount: targetAmount,
         category: targetCategory,
       });
       setSimulationResult(res);
+    } catch (err) {
+      console.error('Simulation error:', err);
+    } finally {
       setSimulating(false);
       setActiveStepIndex(5);
-    }, 1500);
+    }
   };
 
   return (
@@ -84,7 +87,7 @@ export default function SimulationModal({ isOpen, onClose }) {
             <button
               onClick={() =>
                 handleRunSimulation({
-                  agentId: 'ag-1',
+                  agentId: agents[0]?.id || 1,
                   merchant: 'Amazon India',
                   amount: '1299',
                   category: 'Electronics',
@@ -99,7 +102,7 @@ export default function SimulationModal({ isOpen, onClose }) {
             <button
               onClick={() =>
                 handleRunSimulation({
-                  agentId: 'ag-1',
+                  agentId: agents[0]?.id || 1,
                   merchant: 'Amazon India',
                   amount: '2500',
                   category: 'Electronics',
@@ -114,7 +117,7 @@ export default function SimulationModal({ isOpen, onClose }) {
             <button
               onClick={() =>
                 handleRunSimulation({
-                  agentId: 'ag-1',
+                  agentId: agents[0]?.id || 1,
                   merchant: 'Global Merchant',
                   amount: '4500',
                   category: 'Electronics',
@@ -129,7 +132,7 @@ export default function SimulationModal({ isOpen, onClose }) {
             <button
               onClick={() =>
                 handleRunSimulation({
-                  agentId: 'ag-1',
+                  agentId: agents[0]?.id || 1,
                   merchant: 'Casino Online',
                   amount: '3000',
                   category: 'Gambling',
@@ -234,7 +237,7 @@ export default function SimulationModal({ isOpen, onClose }) {
                 <Shield className="w-4 h-4" />
                 <span>PaySentinel Policy Evaluation Pipeline</span>
               </span>
-              <span className="text-[10px] text-slate-400">Live Decision Engine</span>
+              <span className="text-[10px] text-slate-400">Live Backend Engine</span>
             </div>
 
             <div className="space-y-2 text-xs">
