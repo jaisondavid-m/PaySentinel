@@ -40,41 +40,41 @@ export default function Register({ onNavigateLogin }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
+    <div className="min-h-screen bg-[#F7F8FC] flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans text-[#171923]">
       <div className="sm:mx-auto sm:w-full sm:max-w-xl">
         
         {/* Brand Logo */}
         <div className="flex justify-center">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/25">
+          <div className="w-14 h-14 rounded-2xl bg-[#7D53F6] flex items-center justify-center text-white shadow-md">
             <ShieldCheck className="w-8 h-8" />
           </div>
         </div>
 
-        <h2 className="mt-5 text-center text-3xl font-extrabold text-slate-900 tracking-tight">
+        <h2 className="mt-5 text-center text-3xl font-extrabold text-[#171923] tracking-tight">
           Create your PaySentinel Account
         </h2>
-        <p className="mt-2 text-center text-sm text-slate-600">
+        <p className="mt-2 text-center text-xs sm:text-sm text-[#667085] font-medium">
           Select your account role to get started with autonomous payment workflows
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-xl">
-        <div className="razorpay-card py-8 px-6 sm:px-10">
+        <div className="bg-white py-8 px-6 sm:px-10 rounded-2xl border border-[#E6E8F0] shadow-2xs">
 
           {/* Error Banner */}
           {error && (
-            <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 flex items-start space-x-3 text-red-700 animate-in fade-in">
+            <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 flex items-start space-x-3 text-[#DC2626] animate-in fade-in">
               <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-              <p className="text-sm font-medium">{error}</p>
+              <p className="text-xs font-semibold">{error}</p>
             </div>
           )}
 
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form className="space-y-5" onSubmit={handleSubmit}>
             
             {/* Role Selection Cards */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-3">
-                Select Account Role <span className="text-red-500">*</span>
+              <label className="block text-xs font-bold text-[#171923] uppercase tracking-wider mb-2.5">
+                Select Account Role <span className="text-[#DC2626]">*</span>
               </label>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -84,25 +84,25 @@ export default function Register({ onNavigateLogin }) {
                   onClick={() => setRole('developer')}
                   className={`cursor-pointer p-4 rounded-xl border-2 transition-all relative flex flex-col justify-between ${
                     role === 'developer'
-                      ? 'border-emerald-600 bg-emerald-50/50 shadow-md shadow-emerald-500/10'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
+                      ? 'border-[#16A34A] bg-[#F0FDF4]'
+                      : 'border-[#E6E8F0] bg-white hover:border-[#DDD6FE]'
                   }`}
                 >
                   {role === 'developer' && (
-                    <div className="absolute top-3 right-3 text-emerald-600">
+                    <div className="absolute top-3 right-3 text-[#16A34A]">
                       <CheckCircle2 className="w-5 h-5" />
                     </div>
                   )}
                   <div>
-                    <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center mb-3">
+                    <div className="w-9 h-9 rounded-lg bg-emerald-100 text-[#16A34A] flex items-center justify-center mb-3 font-bold">
                       <Code2 className="w-5 h-5" />
                     </div>
-                    <h4 className="font-bold text-slate-900 text-base">Developer Role</h4>
-                    <p className="text-xs text-slate-600 mt-1">
+                    <h4 className="font-extrabold text-[#171923] text-base">Developer Role</h4>
+                    <p className="text-xs text-[#667085] mt-1 font-medium">
                       Build, deploy, and manage AI payment agents, generate API keys, and handle merchant logic.
                     </p>
                   </div>
-                  <span className="mt-4 text-[11px] font-semibold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-full w-max">
+                  <span className="mt-4 text-[10px] font-bold text-[#16A34A] bg-[#DCFCE7] px-2.5 py-1 rounded-full w-max">
                     ⚡ Can Create Agents
                   </span>
                 </div>
@@ -112,26 +112,26 @@ export default function Register({ onNavigateLogin }) {
                   onClick={() => setRole('user')}
                   className={`cursor-pointer p-4 rounded-xl border-2 transition-all relative flex flex-col justify-between ${
                     role === 'user'
-                      ? 'border-blue-600 bg-blue-50/50 shadow-md shadow-blue-500/10'
-                      : 'border-slate-200 bg-white hover:border-slate-300'
+                      ? 'border-[#7D53F6] bg-[#F5F3FF]'
+                      : 'border-[#E6E8F0] bg-white hover:border-[#DDD6FE]'
                   }`}
                 >
                   {role === 'user' && (
-                    <div className="absolute top-3 right-3 text-blue-600">
+                    <div className="absolute top-3 right-3 text-[#7D53F6]">
                       <CheckCircle2 className="w-5 h-5" />
                     </div>
                   )}
                   <div>
-                    <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center mb-3">
+                    <div className="w-9 h-9 rounded-lg bg-purple-100 text-[#7D53F6] flex items-center justify-center mb-3 font-bold">
                       <UserCheck className="w-5 h-5" />
                     </div>
-                    <h4 className="font-bold text-slate-900 text-base">User Role</h4>
-                    <p className="text-xs text-slate-600 mt-1">
+                    <h4 className="font-extrabold text-[#171923] text-base">User Role</h4>
+                    <p className="text-xs text-[#667085] mt-1 font-medium">
                       Authorize payments, execute transactions via active agents, and manage payment history.
                     </p>
                   </div>
-                  <span className="mt-4 text-[11px] font-semibold text-blue-700 bg-blue-100 px-2.5 py-1 rounded-full w-max">
-                    👤 Can Execute Payments
+                  <span className="mt-4 text-[10px] font-bold text-[#7D53F6] bg-[#DDD6FE] px-2.5 py-1 rounded-full w-max">
+                    👤 Can Authorize Limits
                   </span>
                 </div>
 
@@ -140,19 +140,19 @@ export default function Register({ onNavigateLogin }) {
 
             {/* Name Field */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+              <label className="block text-xs font-bold text-[#171923] uppercase tracking-wider mb-1.5">
                 Full Name
               </label>
-              <div className="relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                  <User className="h-5 w-5" />
+              <div className="relative rounded-md">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#667085]">
+                  <User className="h-4 w-4" />
                 </div>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="John Doe"
-                  className="razorpay-input has-icon-left"
+                  className="ps-input has-icon-left text-xs"
                   required
                 />
               </div>
@@ -160,19 +160,19 @@ export default function Register({ onNavigateLogin }) {
 
             {/* Email Field */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+              <label className="block text-xs font-bold text-[#171923] uppercase tracking-wider mb-1.5">
                 Email Address
               </label>
-              <div className="relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                  <Mail className="h-5 w-5" />
+              <div className="relative rounded-md">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#667085]">
+                  <Mail className="h-4 w-4" />
                 </div>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@company.com"
-                  className="razorpay-input has-icon-left"
+                  className="ps-input has-icon-left text-xs"
                   required
                 />
               </div>
@@ -180,28 +180,28 @@ export default function Register({ onNavigateLogin }) {
 
             {/* Password Field */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+              <label className="block text-xs font-bold text-[#171923] uppercase tracking-wider mb-1.5">
                 Password
               </label>
-              <div className="relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                  <Lock className="h-5 w-5" />
+              <div className="relative rounded-md">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#667085]">
+                  <Lock className="h-4 w-4" />
                 </div>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="At least 6 characters"
-                  className="razorpay-input has-icon-left has-icon-right"
+                  className="ps-input has-icon-left has-icon-right text-xs"
                   minLength={6}
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#667085] hover:text-[#171923]"
                 >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
@@ -211,17 +211,17 @@ export default function Register({ onNavigateLogin }) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full razorpay-btn-primary flex justify-center items-center py-3 text-base"
+                className="w-full ps-btn-primary flex justify-center items-center py-3 text-sm font-bold"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
                     <span>Creating Account...</span>
                   </>
                 ) : (
                   <>
                     <span>Create Account & Continue</span>
-                    <ArrowRight className="w-5 h-5 ml-2" />
+                    <ArrowRight className="w-4 h-4 ml-2" />
                   </>
                 )}
               </button>
@@ -229,12 +229,12 @@ export default function Register({ onNavigateLogin }) {
           </form>
 
           {/* Switch to Login */}
-          <div className="mt-8 pt-6 border-t border-slate-100 text-center">
-            <p className="text-sm text-slate-600">
+          <div className="mt-6 pt-6 border-t border-[#E6E8F0] text-center">
+            <p className="text-xs text-[#667085]">
               Already registered?{' '}
               <button
                 onClick={onNavigateLogin}
-                className="font-semibold text-blue-600 hover:text-blue-800 hover:underline transition-all cursor-pointer"
+                className="font-bold text-[#7D53F6] hover:underline transition-all cursor-pointer"
               >
                 Sign in here
               </button>

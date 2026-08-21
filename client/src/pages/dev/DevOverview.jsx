@@ -1,6 +1,6 @@
 import React from 'react';
 import { usePolicy } from '../../context/PolicyContext';
-import { Bot, CreditCard, CheckCircle2, XCircle, TrendingUp, Activity, Sparkles, Key, Code2 } from 'lucide-react';
+import { Bot, CreditCard, CheckCircle2, Activity, Sparkles, Key, Code2 } from 'lucide-react';
 
 export default function DevOverview({ setActiveTab, onRunSim }) {
   const { agents, transactions } = usePolicy();
@@ -12,105 +12,108 @@ export default function DevOverview({ setActiveTab, onRunSim }) {
   const approvalRate = totalRequestsToday > 0 ? ((approvedRequests / totalRequestsToday) * 100).toFixed(1) : '100.0';
 
   return (
-    <div className="space-y-8 font-sans">
+    <div className="space-y-6 font-sans text-[#171923]">
       
       {/* DEVELOPER HERO BANNER */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 rounded-2xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div className="max-w-2xl">
-          <div className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-semibold mb-3 border border-emerald-500/30">
-            <Code2 className="w-4 h-4 mr-1.5 text-emerald-400" />
+      <div className="bg-white rounded-2xl p-6 border border-[#E6E8F0] shadow-2xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <div className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-[#F0FDF4] text-[#16A34A] text-[10px] font-bold mb-2 border border-[#DCFCE7]">
+            <Code2 className="w-3.5 h-3.5 mr-1" />
             <span>Developer Sentinel Studio</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-2">
+          <h2 className="text-xl sm:text-2xl font-extrabold text-[#171923] tracking-tight">
             Build AI Agents with Financial Guardrails
           </h2>
-          <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
+          <p className="text-xs text-[#667085] mt-1 font-medium max-w-xl">
             Developers request capabilities. Users authorize limits. PaySentinel securely enforces rules on every single API payment trigger.
           </p>
         </div>
 
         <button
           onClick={onRunSim}
-          className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs px-5 py-3 rounded-xl transition-all shadow-lg shadow-emerald-500/20 flex items-center space-x-2 cursor-pointer shrink-0"
+          className="ps-btn-primary flex items-center justify-center space-x-2 text-xs font-bold shrink-0"
         >
-          <Sparkles className="w-4 h-4" />
+          <Sparkles className="w-4 h-4 text-purple-200" />
           <span>Test Payment Simulation</span>
         </button>
       </div>
 
       {/* DEVELOPER OVERVIEW METRICS */}
-      <div>
-        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-          DEVELOPER PLATFORM TELEMETRY
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs hover:shadow-md transition-shadow">
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Active Deployed Agents</span>
-              <div className="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                <Bot className="w-5 h-5" />
-              </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        
+        <div className="bg-white p-5 rounded-2xl border border-[#E6E8F0] shadow-2xs flex flex-col justify-between h-36">
+          <div className="flex justify-between items-center">
+            <span className="text-xs font-bold text-[#667085] uppercase tracking-wider">Agents Deployed</span>
+            <div className="w-8 h-8 rounded-xl bg-purple-50 text-[#7D53F6] flex items-center justify-center">
+              <Bot className="w-4 h-4" />
             </div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900">{totalDevAgents}</div>
-            <p className="text-xs text-emerald-600 mt-1 flex items-center font-medium">
+          </div>
+          <div>
+            <div className="text-2xl font-extrabold text-[#171923]">{totalDevAgents}</div>
+            <p className="text-xs text-[#16A34A] mt-1 font-semibold flex items-center">
               <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> All agents online
             </p>
           </div>
+        </div>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs hover:shadow-md transition-shadow">
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Payment Requests Today</span>
-              <div className="w-9 h-9 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
-                <CreditCard className="w-5 h-5" />
-              </div>
+        <div className="bg-white p-5 rounded-2xl border border-[#E6E8F0] shadow-2xs flex flex-col justify-between h-36">
+          <div className="flex justify-between items-center">
+            <span className="text-xs font-bold text-[#667085] uppercase tracking-wider">Payment Triggers</span>
+            <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center">
+              <CreditCard className="w-4 h-4" />
             </div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900">{totalRequestsToday}</div>
-            <p className="text-xs text-blue-600 mt-1 flex items-center font-medium">
-              <TrendingUp className="w-3.5 h-3.5 mr-1" /> Live API triggers
+          </div>
+          <div>
+            <div className="text-2xl font-extrabold text-[#171923]">{totalRequestsToday}</div>
+            <p className="text-xs text-[#2563EB] mt-1 font-semibold">
+              Live API triggers evaluated
             </p>
           </div>
+        </div>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs hover:shadow-md transition-shadow">
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Approval Rate</span>
-              <div className="w-9 h-9 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center">
-                <Activity className="w-5 h-5" />
-              </div>
+        <div className="bg-white p-5 rounded-2xl border border-[#E6E8F0] shadow-2xs flex flex-col justify-between h-36">
+          <div className="flex justify-between items-center">
+            <span className="text-xs font-bold text-[#667085] uppercase tracking-wider">Approval Rate</span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-[#16A34A] flex items-center justify-center">
+              <Activity className="w-4 h-4" />
             </div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900">{approvalRate}%</div>
-            <p className="text-xs text-purple-700 mt-1 font-medium">
+          </div>
+          <div>
+            <div className="text-2xl font-extrabold text-[#171923]">{approvalRate}%</div>
+            <p className="text-xs text-[#667085] mt-1 font-medium">
               {approvedRequests} Approved / {rejectedRequests} Blocked
             </p>
           </div>
+        </div>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-2xs hover:shadow-md transition-shadow">
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">API Keys Status</span>
-              <div className="w-9 h-9 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center">
-                <Key className="w-5 h-5" />
-              </div>
+        <div className="bg-white p-5 rounded-2xl border border-[#E6E8F0] shadow-2xs flex flex-col justify-between h-36">
+          <div className="flex justify-between items-center">
+            <span className="text-xs font-bold text-[#667085] uppercase tracking-wider">API Key Status</span>
+            <div className="w-8 h-8 rounded-xl bg-indigo-50 text-[#7D53F6] flex items-center justify-center">
+              <Key className="w-4 h-4" />
             </div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-slate-900">Active</div>
-            <p className="text-xs text-slate-500 mt-1 font-mono text-[11px]">
+          </div>
+          <div>
+            <div className="text-2xl font-extrabold text-[#16A34A]">Active</div>
+            <p className="text-[11px] font-mono text-[#667085] mt-1">
               ps_live_sec_884...
             </p>
           </div>
-
         </div>
+
       </div>
 
-      {/* DEVELOPER AGENTS LIST */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-2xs space-y-4">
-        <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+      {/* DEVELOPER AGENTS LIST WITH CLEAR AUTHORITY DISTINCTION */}
+      <div className="bg-white rounded-2xl p-6 border border-[#E6E8F0] shadow-2xs space-y-4">
+        <div className="flex justify-between items-center border-b border-[#E6E8F0] pb-4">
           <div>
-            <h3 className="text-lg font-bold text-slate-900">Developer Agent Registry</h3>
-            <p className="text-xs text-slate-500">Registered agent applications built by your organization</p>
+            <h3 className="text-base font-extrabold text-[#171923]">Developer Agent Registry</h3>
+            <p className="text-xs text-[#667085] mt-0.5">Registered agent applications built by your organization</p>
           </div>
 
           <button
             onClick={() => setActiveTab('my-agents')}
-            className="razorpay-btn-primary text-xs py-2 px-3 cursor-pointer"
+            className="ps-btn-primary text-xs py-2 px-4 font-bold cursor-pointer"
           >
             + Create New Agent
           </button>
@@ -118,25 +121,30 @@ export default function DevOverview({ setActiveTab, onRunSim }) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {agents.map((ag) => (
-            <div key={ag.id} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
+            <div key={ag.id} className="p-4 rounded-xl border border-[#E6E8F0] bg-[#F7F8FC] space-y-3">
               <div className="flex justify-between items-center">
-                <span className="font-bold text-slate-900 text-sm">{ag.name}</span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                  {ag.status}
+                <span className="font-extrabold text-[#171923] text-sm">{ag.name}</span>
+                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#F0FDF4] text-[#16A34A] border border-[#DCFCE7]">
+                  ● {ag.status}
                 </span>
               </div>
-              <p className="text-xs text-slate-500">Developer Entity: {ag.developer}</p>
+              <p className="text-xs text-[#667085] font-medium">Developer Entity: {ag.developer}</p>
               
               {/* CLEAR PERMISSION DISTINCTION */}
-              <div className="pt-2 border-t border-slate-200/60 grid grid-cols-2 gap-2 text-[11px]">
-                <div className="p-2 rounded bg-amber-50 border border-amber-200 text-amber-900">
-                  <span className="font-bold block uppercase text-[9px] text-amber-700">Developer Requested</span>
-                  <span className="font-semibold block">Txn Cap: ₹{ag.requestedTxnLimit?.toLocaleString() || '10,000'}</span>
+              <div className="pt-2 border-t border-[#E6E8F0] grid grid-cols-3 gap-2 text-[11px]">
+                <div className="p-2 rounded-lg bg-amber-50 border border-[#FEF3C7] text-[#D97706]">
+                  <span className="font-bold block uppercase text-[9px] text-[#D97706]">Dev Capability</span>
+                  <span className="font-extrabold block text-xs mt-0.5">₹10,000</span>
                 </div>
 
-                <div className="p-2 rounded bg-emerald-50 border border-emerald-200 text-emerald-900">
-                  <span className="font-bold block uppercase text-[9px] text-emerald-700">User Authorized Cap</span>
-                  <span className="font-extrabold block">Txn Cap: ₹{ag.userTxnLimit?.toLocaleString()}</span>
+                <div className="p-2 rounded-lg bg-[#F5F3FF] border border-[#DDD6FE] text-[#7D53F6]">
+                  <span className="font-bold block uppercase text-[9px] text-[#7D53F6]">User Authorized</span>
+                  <span className="font-extrabold block text-xs mt-0.5">₹{ag.userTxnLimit?.toLocaleString()}</span>
+                </div>
+
+                <div className="p-2 rounded-lg bg-[#F0FDF4] border border-[#DCFCE7] text-[#16A34A]">
+                  <span className="font-bold block uppercase text-[9px] text-[#16A34A]">Effective Cap</span>
+                  <span className="font-extrabold block text-xs mt-0.5">₹{Math.min(10000, ag.userTxnLimit)?.toLocaleString()}</span>
                 </div>
               </div>
             </div>

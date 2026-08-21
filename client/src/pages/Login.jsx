@@ -50,35 +50,35 @@ export default function Login({ onNavigateRegister }) {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans">
+    <div className="min-h-screen bg-[#F7F8FC] flex flex-col justify-center py-12 sm:px-6 lg:px-8 font-sans text-[#171923]">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         
         {/* Brand Logo */}
         <div className="flex justify-center">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/25">
+          <div className="w-14 h-14 rounded-2xl bg-[#7D53F6] flex items-center justify-center text-white shadow-md">
             <ShieldCheck className="w-8 h-8" />
           </div>
         </div>
 
-        <h2 className="mt-5 text-center text-3xl font-extrabold text-slate-900 tracking-tight">
+        <h2 className="mt-5 text-center text-3xl font-extrabold text-[#171923] tracking-tight">
           Sign in to PaySentinel
         </h2>
-        <p className="mt-2 text-center text-sm text-slate-600">
-          Professional Payment Agent Orchestration Gateway
+        <p className="mt-2 text-center text-xs sm:text-sm text-[#667085] font-medium">
+          Autonomous AI Payment Security & Authorization Gateway
         </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="razorpay-card py-8 px-6 sm:px-10">
+        <div className="bg-white py-8 px-6 sm:px-10 rounded-2xl border border-[#E6E8F0] shadow-2xs">
 
           {/* Quick Demo Login Buttons */}
-          <div className="mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200/90 space-y-2.5">
+          <div className="mb-6 bg-[#F7F8FC] p-4 rounded-xl border border-[#E6E8F0] space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center space-x-1">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+              <span className="text-[10px] font-bold text-[#667085] uppercase tracking-wider flex items-center space-x-1">
+                <Sparkles className="w-3.5 h-3.5 text-[#7D53F6]" />
                 <span>Quick Demo Login Buttons</span>
               </span>
-              <span className="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-full">1-Click</span>
+              <span className="text-[10px] bg-[#F5F3FF] text-[#7D53F6] font-bold px-2 py-0.5 rounded-full border border-[#DDD6FE]">1-Click</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -86,15 +86,15 @@ export default function Login({ onNavigateRegister }) {
                 type="button"
                 onClick={() => handleQuickLogin('jaison7373@gmail.com', 'jaison')}
                 disabled={loading}
-                className="p-2.5 bg-white hover:bg-blue-50/80 border border-slate-200 hover:border-blue-300 rounded-xl text-left transition-all shadow-2xs group cursor-pointer"
+                className="p-2.5 bg-white hover:bg-[#F5F3FF] border border-[#E6E8F0] hover:border-[#DDD6FE] rounded-xl text-left transition-all group cursor-pointer"
               >
                 <div className="flex items-center space-x-2">
-                  <div className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center">
+                  <div className="w-7 h-7 rounded-lg bg-[#F5F3FF] text-[#7D53F6] flex items-center justify-center font-bold">
                     <UserCheck className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="block text-xs font-bold text-slate-900 group-hover:text-blue-700">User Login</span>
-                    <span className="block text-[10px] text-slate-400 font-mono">jaison7373@...</span>
+                    <span className="block text-xs font-bold text-[#171923] group-hover:text-[#7D53F6]">User Login</span>
+                    <span className="block text-[10px] text-[#667085] font-mono">jaison7373@...</span>
                   </div>
                 </div>
               </button>
@@ -103,15 +103,15 @@ export default function Login({ onNavigateRegister }) {
                 type="button"
                 onClick={() => handleQuickLogin('developer@gmail.com', 'password')}
                 disabled={loading}
-                className="p-2.5 bg-white hover:bg-purple-50/80 border border-slate-200 hover:border-purple-300 rounded-xl text-left transition-all shadow-2xs group cursor-pointer"
+                className="p-2.5 bg-white hover:bg-[#F0FDF4] border border-[#E6E8F0] hover:border-[#DCFCE7] rounded-xl text-left transition-all group cursor-pointer"
               >
                 <div className="flex items-center space-x-2">
-                  <div className="w-7 h-7 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center">
+                  <div className="w-7 h-7 rounded-lg bg-[#F0FDF4] text-[#16A34A] flex items-center justify-center font-bold">
                     <Code2 className="w-4 h-4" />
                   </div>
                   <div>
-                    <span className="block text-xs font-bold text-slate-900 group-hover:text-purple-700">Dev Login</span>
-                    <span className="block text-[10px] text-slate-400 font-mono">developer@...</span>
+                    <span className="block text-xs font-bold text-[#171923] group-hover:text-[#16A34A]">Dev Login</span>
+                    <span className="block text-[10px] text-[#667085] font-mono">developer@...</span>
                   </div>
                 </div>
               </button>
@@ -120,28 +120,28 @@ export default function Login({ onNavigateRegister }) {
 
           {/* Error Banner */}
           {error && (
-            <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 flex items-start space-x-3 text-red-700 animate-in fade-in">
+            <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 flex items-start space-x-3 text-[#DC2626] animate-in fade-in">
               <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-              <p className="text-sm font-medium">{error}</p>
+              <p className="text-xs font-semibold">{error}</p>
             </div>
           )}
 
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form className="space-y-5" onSubmit={handleSubmit}>
             {/* Email Field */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
+              <label className="block text-xs font-bold text-[#171923] uppercase tracking-wider mb-1.5">
                 Email Address
               </label>
-              <div className="relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                  <Mail className="h-5 w-5" />
+              <div className="relative rounded-md">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#667085]">
+                  <Mail className="h-4 w-4" />
                 </div>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@company.com"
-                  className="razorpay-input has-icon-left"
+                  className="ps-input has-icon-left text-xs"
                   required
                 />
               </div>
@@ -149,29 +149,29 @@ export default function Login({ onNavigateRegister }) {
 
             {/* Password Field */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-bold text-[#171923] uppercase tracking-wider">
                   Password
                 </label>
               </div>
-              <div className="relative rounded-md shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                  <Lock className="h-5 w-5" />
+              <div className="relative rounded-md">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#667085]">
+                  <Lock className="h-4 w-4" />
                 </div>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="razorpay-input has-icon-left has-icon-right"
+                  className="ps-input has-icon-left has-icon-right text-xs"
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#667085] hover:text-[#171923]"
                 >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
@@ -181,17 +181,17 @@ export default function Login({ onNavigateRegister }) {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full razorpay-btn-primary flex justify-center items-center py-3 text-base"
+                className="w-full ps-btn-primary flex justify-center items-center py-3 text-sm font-bold"
               >
                 {loading ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
                     <span>Signing in...</span>
                   </>
                 ) : (
                   <>
                     <span>Sign In to Dashboard</span>
-                    <ArrowRight className="w-5 h-5 ml-2" />
+                    <ArrowRight className="w-4 h-4 ml-2" />
                   </>
                 )}
               </button>
@@ -199,12 +199,12 @@ export default function Login({ onNavigateRegister }) {
           </form>
 
           {/* Switch to Register */}
-          <div className="mt-8 pt-6 border-t border-slate-100 text-center">
-            <p className="text-sm text-slate-600">
+          <div className="mt-6 pt-6 border-t border-[#E6E8F0] text-center">
+            <p className="text-xs text-[#667085]">
               New to PaySentinel?{' '}
               <button
                 onClick={onNavigateRegister}
-                className="font-semibold text-blue-600 hover:text-blue-800 hover:underline transition-all cursor-pointer"
+                className="font-bold text-[#7D53F6] hover:underline transition-all cursor-pointer"
               >
                 Create an account
               </button>

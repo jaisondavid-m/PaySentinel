@@ -15,7 +15,10 @@ import {
   LogOut,
   ChevronRight,
   UserCheck,
-  Code2
+  Code2,
+  Settings,
+  HelpCircle,
+  Key
 } from 'lucide-react';
 
 export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) {
@@ -23,33 +26,28 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) 
   const { pendingApprovalsCount, agents } = usePolicy();
   const isDev = user?.role === 'developer';
 
-  // Navigation Items per Role showing ONLY items that have working pages/content
+  // Navigation Items per Role matching exact user prompt hierarchy
   const userNavigation = [
     {
       group: 'MAIN',
       items: [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-        { id: 'my-agents', label: 'My Agents', icon: Bot, badge: `${agents.length} Agents` },
-        { id: 'transactions', label: 'Transactions', icon: CreditCard },
+        { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
+        { id: 'my-agents', label: 'My Agents', icon: Bot, badge: `${agents.length} Active` },
         { 
           id: 'approvals', 
           label: 'Approvals', 
           icon: BellRing, 
-          badge: pendingApprovalsCount > 0 ? `${pendingApprovalsCount} Pending` : null, 
-          badgeColor: 'bg-amber-100 text-amber-700' 
+          badge: pendingApprovalsCount > 0 ? `${pendingApprovalsCount}` : null, 
+          badgeColor: 'bg-amber-50 text-amber-700 border border-amber-200' 
         },
+        { id: 'transactions', label: 'Transactions', icon: CreditCard },
       ],
     },
     {
-      group: 'CONTROL',
+      group: 'CONTROL & SECURITY',
       items: [
-        { id: 'policies-limits', label: 'Policies & Limits', icon: Sliders },
-      ],
-    },
-    {
-      group: 'SECURITY',
-      items: [
-        { id: 'activity-logs', label: 'Activity Logs', icon: FileText },
+        { id: 'policies-limits', label: 'Security & Policies', icon: Sliders },
+        { id: 'activity-logs', label: 'Audit Logs', icon: FileText },
       ],
     },
   ];
@@ -59,15 +57,15 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) 
       group: 'DEVELOPER',
       items: [
         { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-        { id: 'my-agents', label: 'My Agents', icon: Bot, badge: `${agents.length} Agents` },
+        { id: 'my-agents', label: 'Agents', icon: Bot, badge: `${agents.length} Agents` },
         { id: 'payment-requests', label: 'Payment Requests', icon: Receipt },
       ],
     },
     {
       group: 'MONITORING',
       items: [
-        { id: 'agent-activity', label: 'Agent Activity', icon: Activity },
-        { id: 'rejected-requests', label: 'Rejected Requests', icon: XCircle },
+        { id: 'agent-activity', label: 'Analytics', icon: Activity },
+        { id: 'rejected-requests', label: 'Audit Logs', icon: XCircle },
       ],
     },
   ];
@@ -80,41 +78,42 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) 
       {isOpen && (
         <div
           onClick={() => setIsOpen(false)}
-          className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-xs lg:hidden"
+          className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-xs lg:hidden"
         />
       )}
 
-      {/* Sidebar Container */}
+      {/* Sidebar Container - Light mode fixed sidebar */}
       <aside
-        className={`fixed top-0 left-0 z-50 h-screen w-64 bg-white border-r border-slate-200 flex flex-col justify-between transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed top-0 left-0 z-50 h-screen w-64 bg-white border-r border-[#E6E8F0] flex flex-col justify-between transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Brand Header */}
+        {/* Top Header & Navigation */}
         <div>
-          <div className="h-16 px-6 flex items-center justify-between border-b border-slate-100 bg-white">
+          {/* Brand Header */}
+          <div className="h-16 px-5 flex items-center justify-between border-b border-[#E6E8F0] bg-white">
             <div className="flex items-center space-x-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+              <div className="w-9 h-9 rounded-xl bg-[#7D53F6] flex items-center justify-center text-white shadow-xs">
                 <ShieldCheck className="w-5 h-5" />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-lg text-slate-900 tracking-tight leading-tight">PaySentinel</span>
-                <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
-                  Autonomous Gateway
+                <span className="font-extrabold text-base text-[#171923] tracking-tight leading-tight">PaySentinel</span>
+                <span className="text-[10px] font-bold text-[#667085] uppercase tracking-wider">
+                  Agent Shield Gateway
                 </span>
               </div>
             </div>
           </div>
 
           {/* Role Status Tag */}
-          <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+          <div className="px-4 py-3 bg-[#F7F8FC] border-b border-[#E6E8F0] flex items-center justify-between">
             <div className="flex items-center space-x-2">
               {isDev ? (
-                <Code2 className="w-4 h-4 text-emerald-600" />
+                <Code2 className="w-4 h-4 text-[#16A34A]" />
               ) : (
-                <UserCheck className="w-4 h-4 text-blue-600" />
+                <UserCheck className="w-4 h-4 text-[#7D53F6]" />
               )}
-              <span className="text-xs font-semibold text-slate-700">
+              <span className="text-xs font-bold text-[#171923]">
                 {isDev ? 'Developer Console' : 'User Portal'}
               </span>
             </div>
@@ -128,10 +127,10 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) 
           </div>
 
           {/* Navigation Items */}
-          <div className="px-3 py-4 space-y-6 overflow-y-auto max-h-[calc(100vh-12rem)] scrollbar-thin scrollbar-thumb-slate-200">
+          <div className="px-3 py-4 space-y-6 overflow-y-auto max-h-[calc(100vh-14rem)] scrollbar-thin">
             {navigation.map((group, groupIdx) => (
               <div key={groupIdx} className="space-y-1">
-                <h3 className="px-3 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                <h3 className="px-3 text-[10px] font-bold text-[#667085] uppercase tracking-wider">
                   {group.group}
                 </h3>
                 <div className="mt-1 space-y-0.5">
@@ -145,16 +144,16 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) 
                           setActiveTab(item.id);
                           if (setIsOpen) setIsOpen(false);
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-semibold transition-all duration-150 group cursor-pointer ${
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 group cursor-pointer ${
                           isActive
-                            ? 'bg-blue-50 text-blue-700 shadow-xs border-l-4 border-blue-600 pl-2.5'
-                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            ? 'bg-[#F5F3FF] text-[#7D53F6] border border-[#DDD6FE] font-bold'
+                            : 'text-[#667085] hover:bg-[#F7F8FC] hover:text-[#171923]'
                         }`}
                       >
                         <div className="flex items-center space-x-3">
                           <Icon
                             className={`w-4 h-4 transition-colors ${
-                              isActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'
+                              isActive ? 'text-[#7D53F6]' : 'text-[#667085] group-hover:text-[#171923]'
                             }`}
                           />
                           <span>{item.label}</span>
@@ -162,13 +161,13 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) 
                         {item.badge ? (
                           <span
                             className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                              item.badgeColor || 'bg-slate-100 text-slate-600'
+                              item.badgeColor || 'bg-slate-100 text-slate-700'
                             }`}
                           >
                             {item.badge}
                           </span>
                         ) : isActive ? (
-                          <ChevronRight className="w-3.5 h-3.5 text-blue-600" />
+                          <ChevronRight className="w-3.5 h-3.5 text-[#7D53F6]" />
                         ) : null}
                       </button>
                     );
@@ -179,22 +178,22 @@ export default function Sidebar({ activeTab, setActiveTab, isOpen, setIsOpen }) 
           </div>
         </div>
 
-        {/* User Footer Profile */}
-        <div className="p-3 border-t border-slate-200 bg-slate-50/50">
-          <div className="flex items-center justify-between p-2 rounded-lg bg-white border border-slate-200 shadow-2xs">
-            <div className="flex items-center space-x-3 overflow-hidden">
-              <div className="w-8 h-8 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center shrink-0">
+        {/* Bottom User Profile & Sign Out */}
+        <div className="p-3 border-t border-[#E6E8F0] bg-white space-y-2">
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-[#F7F8FC] border border-[#E6E8F0]">
+            <div className="flex items-center space-x-2.5 overflow-hidden">
+              <div className="w-8 h-8 rounded-full bg-[#7D53F6] text-white font-bold text-xs flex items-center justify-center shrink-0">
                 {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
               </div>
               <div className="flex flex-col overflow-hidden text-left">
-                <span className="text-xs font-bold text-slate-800 truncate">{user?.name}</span>
-                <span className="text-[10px] text-slate-500 truncate">{user?.email}</span>
+                <span className="text-xs font-extrabold text-[#171923] truncate">{user?.name}</span>
+                <span className="text-[10px] text-[#667085] truncate">{user?.email}</span>
               </div>
             </div>
             <button
               onClick={logout}
               title="Sign Out"
-              className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+              className="p-1.5 rounded-lg text-[#667085] hover:text-[#DC2626] hover:bg-red-50 transition-colors cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
             </button>
