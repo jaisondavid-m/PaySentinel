@@ -52,7 +52,13 @@ func InitDB() (*gorm.DB, error) {
 	err = db.AutoMigrate(
 		&models.User{},
 		&models.Agent{},
-		&models.Payment{},
+		&models.AgentPermission{},
+		&models.AgentPolicy{},
+		&models.AgentCategory{},
+		&models.AgentMerchant{},
+		&models.PaymentRequest{},
+		&models.Approval{},
+		&models.AuditLog{},
 	)
 	if err != nil {
 		log.Printf("⚠️ Failed to auto-migrate database tables: %v", err)

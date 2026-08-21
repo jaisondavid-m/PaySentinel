@@ -24,53 +24,55 @@ func SetupRouter() *gin.Engine {
 		})
 	})
 
-	// Public Auth routes
+	// Public Auth routes (Preserved)
 	authRoutes := r.Group("/api/auth")
 	{
 		authRoutes.POST("/register", controllers.Register)
 		authRoutes.POST("/login", controllers.Login)
 	}
 
-	// Protected routes (Requires valid JWT)
-	protected := r.Group("/api")
-	protected.Use(middleware.AuthMiddleware())
+	// PaySentinel V1 API Routes
+	v1 := r.Group("/api/v1")
 	{
-		protected.GET("/auth/me", controllers.GetMe)
+		// Agent execution endpoint (Public/HMAC authenticated agent trigger)
+		v1.POST("/agent/payment-requests", controllers.AgentPaymentRequest)
 
-		// Developer-only routes
-		devRoutes := protected.Group("/developer")
-		devRoutes.Use(middleware.RequireRole(models.RoleDeveloper))
+		// Protected routes requiring authenticated user/developer JWT
+		protected := v1.Group("")
+		protected.Use(middleware.AuthMiddleware())
 		{
-			devRoutes.GET("/dashboard", func(c *gin.Context) {
-				c.JSON(http.StatusOK, gin.H{
-					"message": "Welcome to Developer Sentinel Studio",
-					"role":    "developer",
-					"features": []string{
-						"Create AI Payment Agent",
-						"Generate API Secret Keys",
-						"Manage Webhooks & Callbacks",
-						"Inspect Real-time Analytics",
-					},
-				})
-			})
-		}
+			protected.GET("/auth/me", controllers.GetMe)
 
-		// User-only routes
-		userRoutes := protected.Group("/user")
-		userRoutes.Use(middleware.RequireRole(models.RoleUser))
-		{
-			userRoutes.GET("/dashboard", func(c *gin.Context) {
-				c.JSON(http.StatusOK, gin.H{
-					"message": "Welcome to PaySentinel User Portal",
-					"role":    "user",
-					"features": []string{
-						"Execute Agent Payments",
-						"View Payment History",
-						"Manage Payment Methods",
-						"Verify Transaction Receipts",
-					},
-				})
-			})
+			// Developer Endpoints
+			devRoutes := protected.Group("/developer")
+			devRoutes.Use(middleware.RequireRole(models.RoleDeveloper))
+			{
+				devRoutes.GET("/dashboard", controllers.DeveloperGetDashboard)
+				devRoutes.POST("/agents", controllers.DeveloperCreateAgent)
+				devRoutes.GET("/agents", controllers.DeveloperListAgents)
+				devRoutes.GET("/agents/:id", controllers.DeveloperGetAgent)
+				devRoutes.PATCH("/agents/:id", controllers.DeveloperUpdateAgent)
+				devRoutes.DELETE("/agents/:id", controllers.DeveloperDeleteAgent)
+			}
+
+			// User Endpoints
+			userRoutes := protected.Group("/user")
+			userRoutes.Use(middleware.RequireRole(models.RoleUser, models.RoleDeveloper))
+			{
+				userRoutes.GET("/dashboard", controllers.UserGetDashboard)
+				userRoutes.GET("/agents", controllers.UserListAgents)
+				userRoutes.GET("/agents/:id", controllers.UserGetAgent)
+				userRoutes.PATCH("/agents/:id/policy", controllers.UserUpdatePolicy)
+				userRoutes.PATCH("/agents/:id/status", controllers.UserUpdateAgentStatus)
+
+				userRoutes.GET("/approvals", controllers.UserGetApprovals)
+				userRoutes.POST("/approvals/:id/approve", controllers.UserApproveRequest)
+				userRoutes.POST("/approvals/:id/reject", controllers.UserRejectRequest)
+
+				userRoutes.GET("/transactions", controllers.UserGetTransactions)
+				userRoutes.GET("/transactions/:id", controllers.UserGetTransactionDetail)
+				userRoutes.GET("/audit-logs", controllers.UserGetAuditLogs)
+			}
 		}
 	}
 

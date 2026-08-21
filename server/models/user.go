@@ -23,9 +23,9 @@ type User struct {
 	UpdatedAt    time.Time      `json:"updated_at"`
 	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
 
-	// Relationships
-	Agents   []Agent   `gorm:"foreignKey:DeveloperID" json:"agents,omitempty"`
-	Payments []Payment `gorm:"foreignKey:UserID" json:"payments,omitempty"`
+	// Inverse Relationships (ignore migration on inverse slice to prevent GORM duplicate FK creation)
+	Agents   []Agent          `gorm:"foreignKey:DeveloperID;-:migration" json:"agents,omitempty"`
+	Payments []PaymentRequest `gorm:"foreignKey:UserID;-:migration" json:"payments,omitempty"`
 }
 
 type RegisterInput struct {

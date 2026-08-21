@@ -19,4 +19,19 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Response Interceptor for standard API error format & 401 unauth
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      if (window.location.pathname !== '/' && window.location.pathname !== '/login') {
+        localStorage.removeItem('paysentinel_token');
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;
